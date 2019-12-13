@@ -22,7 +22,7 @@ static int getARGB(const char *const lineArray, unsigned int *const element);
 static void getKeys(Display *const display, const unsigned int *const currentMonitor, const Window *const window, const char *const lineArray, unsigned int *const element, unsigned int *const key, int *const masks);
 static char *getText(const char *const lineArray, unsigned int *const element);
 static char *getCommand(const char *const lineArray, unsigned int *const element);
-// static unsigned int printLineError(const char *const lineArray, const unsigned int *const element, const unsigned int *const currentLine);
+static unsigned int printLineError(const char *const lineArray, const unsigned int *const element, const unsigned int *const currentLine);
 
 unsigned int readConfig(const char *const pathArray, const Window *const parentWindow){
 	unsigned int value = 0;
@@ -402,7 +402,7 @@ static char *getCommand(const char *const lineArray, unsigned int *const element
 	}
 	return command;
 }
-/*static unsigned int printLineError(const char *const lineArray, const unsigned int *const element, const unsigned int *const currentLine){
+static unsigned int printLineError(const char *const lineArray, const unsigned int *const element, const unsigned int *const currentLine){
 	unsigned int value = 0;
 	if(lineArray[*element] != 10){
 		unsigned int length = 0;
@@ -417,4 +417,4 @@ static char *getCommand(const char *const lineArray, unsigned int *const element
 		value = 1;
 	}
 	return value;
-}*/
+}
