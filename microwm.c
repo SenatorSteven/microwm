@@ -1,5 +1,3 @@
-// clear; cd $HOME/Downloads/stevewm/; gcc stevewm.c readConfig.c -lX11 -lXrandr -o output/stevewm; ./output/stevewm
-
 #include <stdio.h>
 #include <X11/Xlib.h>
 #include "headers/defines.h"
