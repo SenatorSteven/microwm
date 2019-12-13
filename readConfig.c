@@ -13,7 +13,7 @@
 #define OperationMultiplication /*-----------*/ ((unsigned int)3)
 #define OperationDivision /*-----------------*/ ((unsigned int)4)
 
-static FILE *getConfigFile(const char *const pathArray);
+/*static FILE *getConfigFile(const char *const pathArray);
 static unsigned int pushSpaces(const char *const lineArray, unsigned int *const element);
 static unsigned int isVariable(const char *const variableArray, const char *const lineArray, unsigned int *const element);
 static unsigned int getUnsignedDecimalNumber(Display *const display, const unsigned int *const currentMonitor, const Window *const window, const char *const lineArray, unsigned int *const element);
@@ -417,4 +417,4 @@ static unsigned int printLineError(const char *const lineArray, const unsigned i
 		value = 1;
 	}
 	return value;
-}
+}*/
