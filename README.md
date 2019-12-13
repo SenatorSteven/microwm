@@ -3,7 +3,7 @@ A simple window manager for the X Window System.
 
 
 
-## ...But what is microwm?
+## micro-wm? What is that?
 
 
 
@@ -13,6 +13,10 @@ A simple window manager for the X Window System.
 
 
 ## Philosophy
+
+
+
+## Trivia
 
 
 
