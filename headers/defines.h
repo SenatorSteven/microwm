@@ -2,6 +2,7 @@
 #define DEFINES_H
 
 #define ProgramName /*------------*/ "microwm"
+#define Tab /*--------------------*/ "    "
 #define DefaultCharactersCount /*-*/ ((unsigned int)200)
 #define DefaultLinesCount /*------*/ ((unsigned int)100)
 
