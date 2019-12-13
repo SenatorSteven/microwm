@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <X11/Xlib.h>
 #include "headers/defines.h"
+#include "headers/getParameters.h"
+#include "headers/readConfig.h"
 
 #define ModeContinue /*---*/ ((unsigned int)0)
 #define ModeRestart /*----*/ ((unsigned int)1)
@@ -10,7 +12,7 @@ static void eventLoop(Display *const display, unsigned int *const mode);
 
 int main(const int argumentCount, const char *const *const argumentVector){
 	const char *configPath;
-	if(getParameters(&argumentCount, argumentVector, &configPath)){
+	if(getParameters((unsigned int *)&argumentCount, argumentVector, &configPath)){
 		unsigned int mode = ModeContinue;
 		Display *display;
 		while(mode == ModeContinue || mode == ModeRestart){
