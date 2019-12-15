@@ -13,7 +13,7 @@
 #define OperationMultiplication /*-----------*/ ((unsigned int)3)
 #define OperationDivision /*-----------------*/ ((unsigned int)4)
 
-/*static FILE *getConfigFile(const char *const pathArray);
+static FILE *getConfigFile(const char *const pathArray);
 static unsigned int pushSpaces(const char *const lineArray, unsigned int *const element);
 static unsigned int isVariable(const char *const variableArray, const char *const lineArray, unsigned int *const element);
 static unsigned int getUnsignedDecimalNumber(Display *const display, const unsigned int *const currentMonitor, const Window *const window, const char *const lineArray, unsigned int *const element);
@@ -24,7 +24,7 @@ static char *getText(const char *const lineArray, unsigned int *const element);
 static char *getCommand(const char *const lineArray, unsigned int *const element);
 static unsigned int printLineError(const char *const lineArray, const unsigned int *const element, const unsigned int *const currentLine);
 
-unsigned int readConfig(const char *const pathArray, const Window *const parentWindow){
+unsigned int readConfig(const char *const pathArray){
 	unsigned int value = 0;
 	FILE *config = getConfigFile(pathArray);
 	if(config){
@@ -55,11 +55,10 @@ static FILE *getConfigFile(const char *const pathArray){
 	FILE *config = fopen(pathArray, "r");
 	if(!config){
 		if((config = fopen(pathArray, "w"))){
-			
 			fclose(config);
 			config = fopen(pathArray, "r");
 		}else{
-			fprintf(stderr, "%s: could not locate config file\n", ProgramName);
+			fprintf(stderr, "%s: could not create config file\n", ProgramName);
 		}
 	}
 	return config;
@@ -67,7 +66,7 @@ static FILE *getConfigFile(const char *const pathArray){
 static unsigned int pushSpaces(const char *const lineArray, unsigned int *const element){
 	unsigned int dereferencedElement = *element;
 	unsigned int value = 0;
-	while(dereferencedElement < DefaultCharactersCount && (lineArray[dereferencedElement] == ' ' || lineArray[dereferencedElement] == 9)){
+	while(lineArray[dereferencedElement] > '\0' && (lineArray[dereferencedElement] == ' ' || lineArray[dereferencedElement] == 9)){
 		dereferencedElement++;
 	}
 	if(dereferencedElement > *element){
@@ -84,7 +83,7 @@ static unsigned int isVariable(const char *const variable, const char *const lin
 		length++;
 	}
 	unsigned int currentCharacter = 0;
-	while(currentCharacter < length){
+	while(lineArray[dereferencedElement] > '\0' && currentCharacter < length){
 		if(variable[currentCharacter] >= 'A' && variable[currentCharacter] <= 'Z'){
 			if(!(lineArray[dereferencedElement] == variable[currentCharacter] || lineArray[dereferencedElement] == variable[currentCharacter] + 32)){
 				break;
@@ -130,7 +129,7 @@ static int getDecimalNumber(Display *const display, const unsigned int *const cu
 		windowAttributes.width = monitorInfo[*currentMonitor].width;
 		windowAttributes.height = monitorInfo[*currentMonitor].height;
 	}
-	while(dereferencedElement < DefaultCharactersCount){
+	while(lineArray[dereferencedElement] > '\0'){
 		pushSpaces(lineArray, &dereferencedElement);
 		if(lineArray[dereferencedElement] >= '0' && lineArray[dereferencedElement] <= '9'){
 			numberRead *= 10;
@@ -281,8 +280,8 @@ static int getARGB(const char *const lineArray, unsigned int *const element){
 	if(lineArray[dereferencedElement] == '#'){
 		dereferencedElement++;
 	}
-	unsigned int currentCharacter;
-	for(currentCharacter = 0; currentCharacter < 8; currentCharacter++){
+	unsigned int currentCharacter = 0;
+	while(lineArray[dereferencedElement] > '\0' && currentCharacter < 8){
 		color *= 16;
 		if(lineArray[dereferencedElement] >= '0' && lineArray[dereferencedElement] <= '9'){
 			color += lineArray[dereferencedElement];
@@ -299,6 +298,7 @@ static int getARGB(const char *const lineArray, unsigned int *const element){
 			break;
 		}
 		dereferencedElement++;
+		currentCharacter++;
 	}
 	if(currentCharacter == 8){
 		*element = dereferencedElement;
@@ -310,7 +310,7 @@ static void getKeys(Display *const display, const unsigned int *const currentMon
 	*key = 0;
 	int dereferencedMasks = 0;
 	unsigned int lookingForValue = 1;
-	while(dereferencedElement < DefaultCharactersCount){
+	while(lineArray[dereferencedElement] > '\0'){
 		pushSpaces(lineArray, &dereferencedElement);
 		if(lookingForValue){
 			if(lineArray[dereferencedElement] >= '0' && lineArray[dereferencedElement] <= '9'){
@@ -357,19 +357,23 @@ static char *getText(const char *const lineArray, unsigned int *const element){
 	unsigned int length = 0;
 	{
 		const char quotation = lineArray[dereferencedElement++];
-		while(dereferencedElement < DefaultCharactersCount && lineArray[dereferencedElement + length] != quotation){
+		while(lineArray[dereferencedElement + length] > '\0' && lineArray[dereferencedElement + length] != quotation){
 			length++;
 		}
 	}
 	if(length > 0){
 		if((text = (char *)malloc((length + 1) * sizeof(char)))){
-			for(unsigned int currentCharacter = 0; currentCharacter < length; currentCharacter++){
+			unsigned int currentCharacter = 0;
+			while(lineArray[dereferencedElement] > '\0' && currentCharacter < length){
 				text[currentCharacter] = lineArray[dereferencedElement];
 				dereferencedElement++;
+				currentCharacter++;
 			}
-			dereferencedElement++;
-			text[length] = '\0';
-			*element = dereferencedElement;
+			if(currentCharacter == length){
+				dereferencedElement++;
+				text[length] = '\0';
+				*element = dereferencedElement;
+			}
 		}else{
 			fprintf(stderr, "%s: could not allocate space for text\n", ProgramName);
 		}
@@ -382,20 +386,24 @@ static char *getCommand(const char *const lineArray, unsigned int *const element
 	unsigned int length = 0;
 	{
 		const char quotation = lineArray[dereferencedElement++];
-		while(dereferencedElement < DefaultCharactersCount && lineArray[dereferencedElement + length] != quotation){
+		while(lineArray[dereferencedElement + length] > '\0' && lineArray[dereferencedElement + length] != quotation){
 			length++;
 		}
 	}
 	if(length > 0){
 		if((command = (char *)malloc((length + 2) * sizeof(char)))){
-			for(unsigned int currentCharacter = 0; currentCharacter < length; currentCharacter++){
+			unsigned int currentCharacter = 0;
+			while(lineArray[dereferencedElement] > '\0' && currentCharacter < length){
 				command[currentCharacter] = lineArray[dereferencedElement];
 				dereferencedElement++;
+				currentCharacter++;
 			}
-			dereferencedElement++;
-			command[length++] = '&';
-			command[length] = '\0';
-			*element = dereferencedElement;
+			if(currentCharacter == length){
+				dereferencedElement++;
+				command[length++] = '&';
+				command[length] = '\0';
+				*element = dereferencedElement;
+			}
 		}else{
 			fprintf(stderr, "%s: could not allocate space for command\n", ProgramName);
 		}
@@ -417,4 +425,4 @@ static unsigned int printLineError(const char *const lineArray, const unsigned i
 		value = 1;
 	}
 	return value;
-}*/
+}
