@@ -2,33 +2,80 @@
 #include <stdlib.h>
 #include <X11/Xlib.h>
 
+#define WindowAmount 20
+
+Display *display;
+XEvent event;
+XWindowAttributes windowAttributes;
+Window focusedWindow;
+
 static void printEvent(const XEvent *const event);
+static void dealWithKeypress();
 
 int main(void){
-	Display *display = XOpenDisplay(NULL);
+	display = XOpenDisplay(NULL);
 	if(display){
 
 
 
-		XSelectInput(display, XDefaultRootWindow(display), KeyPressMask | SubstructureNotifyMask);
+		XSelectInput(display, XDefaultRootWindow(display), KeyPressMask | SubstructureRedirectMask | StructureNotifyMask);
 
 
 
-		// XGrabKey(display, 40, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
-		XEvent event;
+		XGrabKey(display, 40, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
+		XGrabKey(display, 41, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
+		XGrabKey(display, 95, None, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
+		XGrabKey(display, 111, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
+		XGrabKey(display, 113, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
+		XGrabKey(display, 114, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
+		XGrabKey(display, 116, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
+
+
+
+		Window windowContainer = windowContainer = XCreateSimpleWindow(display, XDefaultRootWindow(display), (1920 - 500) / 2, (1080 - 500) / 2, 500, 500, 1, 0xFFFFFFFF, 0xFF000000);
+
+
+
 		for(;;){
 			XNextEvent(display, &event);
 			printEvent(&event);
 			if(event.type == KeyPress){
-				if(event.xkey.keycode == 40 && event.xkey.state == Mod4Mask){
-					system("dmenu_run -i -b -p \"DMenu | <MatrixCustom> | TheSenatorSteven\" -nb \"#000000\" -sb \"#1f1f1f\" -nf \"#00ff00\" -sf \"#00ff00\"");
+				dealWithKeypress();
+
+
+
+			}else if(event.type == ConfigureRequest){
+				fprintf(stdout, "configured\n");
+				XResizeWindow(display, event.xconfigure.window, 500, 500);
+
+
+
+			}else if(event.type == MapRequest){
+				fprintf(stdout, "mapped\n");
+				XReparentWindow(display, event.xmaprequest.window, windowContainer, 0, 0);
+				XAddToSaveSet(display, event.xmaprequest.window);
+				XMapWindow(display, windowContainer);
+				XMapWindow(display, event.xmaprequest.window);
+
+
+
+			}else if(event.type == UnmapNotify){
+				if(event.xunmap.window != windowContainer){
+					XUnmapWindow(display, windowContainer);
+					// XReparentWindow(display, event.xunmap.window, XDefaultRootWindow(display), 0, 0);
+					// XRemoveFromSaveSet(display, event.xunmap.window);
+					XDestroyWindow(display, windowContainer);
 				}
-			}else if(event.type == MapNotify){
-				fprintf(stdout, "                         ,         window: %lu\n", event.xmap.window);
-				// XUnmapWindow(display, event.xmap.window);
-				// XMoveResizeWindow(display, event.xmap.window, (1920 - 500) / 2, (1080 - 500) / 2, 500, 500);
+
+
+
+			}else if(event.type == DestroyNotify){
+				fprintf(stdout, "destroyed\n");
 			}
 		}
+
+
+
 		XCloseDisplay(display);
 	}else{
 		fprintf(stderr, "could not connect to server\n");
@@ -36,120 +83,54 @@ int main(void){
 	return 0;
 }
 
+static void dealWithKeypress(){
+	if(event.xkey.keycode == 40 && event.xkey.state == Mod4Mask){
+		system("dmenu_run -i -b -p \"DMenu | <MatrixCustom> | TheSenatorSteven\" -nb \"#000000\" -sb \"#1f1f1f\" -nf \"#00ff00\" -sf \"#00ff00\"");
+	}else if(event.xkey.keycode == 41 && event.xkey.state == Mod4Mask){
 
 
 
-
-
-
-
-
-#ifdef a
-	#include "headers/defines.h"
-
-	int main(void){
-		Display *display = XOpenDisplay(NULL);
-		if(display){
-			// XSelectInput(display, XDefaultRootWindow(display), KeyPressMask | KeyReleaseMask | ButtonPressMask | ButtonReleaseMask | EnterWindowMask | LeaveWindowMask | PointerMotionMask | PointerMotionHintMask | Button1MotionMask | Button2MotionMask | Button3MotionMask | Button4MotionMask | Button5MotionMask | ButtonMotionMask | KeymapStateMask | ExposureMask | VisibilityChangeMask | StructureNotifyMask | ResizeRedirectMask | SubstructureNotifyMask | SubstructureRedirectMask | FocusChangeMask | PropertyChangeMask | ColormapChangeMask | OwnerGrabButtonMask);
-			// XSelectInput(display, XDefaultRootWindow(display), KeyPressMask | KeyReleaseMask | SubstructureNotifyMask | SubstructureRedirectMask);
-			XSelectInput(display, XDefaultRootWindow(display), KeyPressMask | KeyReleaseMask | StructureNotifyMask);
-			eventLoop(display);
-			XCloseDisplay(display);
-		}else{
-			fprintf(stderr, "%s: could not connect to server\n", ProgramName);
+		if(event.xbutton.subwindow != focusedWindow){
+			focusedWindow = event.xbutton.subwindow;
+			XRaiseWindow(display, focusedWindow);
+			int revert;
+			XSetInputFocus(display, focusedWindow, revert, CurrentTime);
 		}
-		return 0;
-	}
-	static void eventLoop(Display *const display){
-		XGrabKey(display, 40, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
-		XGrabKey(display, 52, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
-		XGrabKey(display, 111, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
-		XGrabKey(display, 113, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
-		XGrabKey(display, 114, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
-		XGrabKey(display, 116, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
-		XGrabKey(display, 95, None, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
-		XEvent event;
-		unsigned int windowAmount;
-		Window currentWindow;
-		Window focusedWindow;
-		XWindowChanges windowChanges;
-		for(;;){
-			XNextEvent(display, &event);
-			printEvent(&event);
-			if(event.type == KeyPress){
-				if(event.xkey.keycode == 40){
-					system("dmenu_run -i -b -p \"DMenu | <MatrixCustom> | TheSenatorSteven\" -nb \"#000000\" -sb \"#1f1f1f\" -nf \"#00ff00\" -sf \"#00ff00\"");
-				}else if(event.xkey.keycode == 52){
-					if(event.xkey.subwindow != None){
-						currentWindow = event.xbutton.subwindow;
-						// XReparentWindow(display, currentWindow, XDefaultRootWindow(display), 0, 0);
-						XRaiseWindow(display, currentWindow);
-						int revert;
-						XGetInputFocus(display, &focusedWindow, &revert);
-						if(currentWindow != focusedWindow){
-							XSetInputFocus(display, currentWindow, revert, CurrentTime);
-						}
-					}
-				}else if(event.xkey.keycode == 111){
-					if(event.xkey.subwindow != None){
-						windowChanges.y = 0;
-						windowChanges.width = 1920 / 2;
-						windowChanges.height = 1080 / 2;
-						XConfigureWindow(display, event.xbutton.subwindow, CWY | CWWidth | CWHeight, &windowChanges);
-					}
-				}else if(event.xkey.keycode == 113){
-					if(event.xkey.subwindow != None){
-						windowChanges.x = 0;
-						windowChanges.width = 1920 / 2;
-						windowChanges.height = 1080 / 2;
-						XConfigureWindow(display, event.xbutton.subwindow, CWX | CWWidth | CWHeight, &windowChanges);
-					}
-				}else if(event.xkey.keycode == 114){
-					if(event.xkey.subwindow != None){
-						windowChanges.x = 1920 / 2;
-						windowChanges.width = 1920 / 2;
-						windowChanges.height = 1080 / 2;
-						XConfigureWindow(display, event.xbutton.subwindow, CWX | CWWidth | CWHeight, &windowChanges);
-					}
-				}else if(event.xkey.keycode == 116){
-					if(event.xkey.subwindow != None){
-						windowChanges.y = 1080 / 2;
-						windowChanges.width = 1920 / 2;
-						windowChanges.height = 1080 / 2;
-						XConfigureWindow(display, event.xbutton.subwindow, CWY | CWWidth | CWHeight, &windowChanges);
-					}
-				}else if(event.xkey.keycode == 95){
-					if(event.xkey.subwindow != None){
-						windowChanges.x = 0;
-						windowChanges.y = 0;
-						windowChanges.width = 1920;
-						windowChanges.height = 1080;
-						XConfigureWindow(display, event.xbutton.subwindow, CWX | CWY | CWWidth | CWHeight, &windowChanges);
-					}
-				}
-			}else if(event.type == CreateNotify){
-	/*			windowChanges.x = 1920 / 2;
-				windowChanges.y = 0;
-				windowChanges.width = 1920 / 2;
-				windowChanges.height = 1080;
-				XConfigureWindow(display, event.xcreatewindow.window, CWX | CWY | CWWidth | CWHeight, &windowChanges);*/
-			}else if(event.type == ConfigureRequest){
-				
-			}else if(event.type == MapRequest){
-	//			XMapWindow(display, event.xmaprequest.window);
+
+
+
+	}else if(event.xkey.keycode == 95 && event.xkey.state == None){
+		if(event.xkey.subwindow != None){
+			XGetWindowAttributes(display, event.xkey.subwindow, &windowAttributes);
+			if(windowAttributes.x == 0 && windowAttributes.y == 0 && windowAttributes.width == XDisplayWidth(display, XDefaultScreen(display)) && windowAttributes.height == XDisplayHeight(display, XDefaultScreen(display))){
+				XMoveResizeWindow(display, event.xkey.subwindow, XDisplayWidth(display, XDefaultScreen(display)) / 4, XDisplayHeight(display, XDefaultScreen(display)) / 4, XDisplayWidth(display, XDefaultScreen(display)) / 2, XDisplayHeight(display, XDefaultScreen(display)) / 2);
+			}else{
+				XMoveResizeWindow(display, event.xkey.subwindow, 0, 0, XDisplayWidth(display, XDefaultScreen(display)), XDisplayHeight(display, XDefaultScreen(display)));
 			}
 		}
-		return;
+	}else if(event.xkey.keycode == 111 && event.xkey.state == Mod4Mask){
+		if(event.xkey.subwindow != None){
+			XGetWindowAttributes(display, event.xkey.subwindow, &windowAttributes);
+			XMoveResizeWindow(display, event.xkey.subwindow, windowAttributes.x, 0, XDisplayWidth(display, XDefaultScreen(display)) / 2, XDisplayHeight(display, XDefaultScreen(display)) / 2);
+		}
+	}else if(event.xkey.keycode == 113 && event.xkey.state == Mod4Mask){
+		if(event.xkey.subwindow != None){
+			XGetWindowAttributes(display, event.xkey.subwindow, &windowAttributes);
+			XMoveResizeWindow(display, event.xkey.subwindow, 0, windowAttributes.y, XDisplayWidth(display, XDefaultScreen(display)) / 2, XDisplayHeight(display, XDefaultScreen(display)) / 2);
+		}
+	}else if(event.xkey.keycode == 114 && event.xkey.state == Mod4Mask){
+		if(event.xkey.subwindow != None){
+			XGetWindowAttributes(display, event.xkey.subwindow, &windowAttributes);
+			XMoveResizeWindow(display, event.xkey.subwindow, XDisplayWidth(display, XDefaultScreen(display)) / 2, windowAttributes.y, XDisplayWidth(display, XDefaultScreen(display)) / 2, XDisplayHeight(display, XDefaultScreen(display)) / 2);
+		}
+	}else if(event.xkey.keycode == 116 && event.xkey.state == Mod4Mask){
+		if(event.xkey.subwindow != None){
+			XGetWindowAttributes(display, event.xkey.subwindow, &windowAttributes);
+			XMoveResizeWindow(display, event.xkey.subwindow, windowAttributes.x, XDisplayHeight(display, XDefaultScreen(display)) / 2, XDisplayWidth(display, XDefaultScreen(display)) / 2, XDisplayHeight(display, XDefaultScreen(display)) / 2);
+		}
 	}
-#endif
-
-
-
-
-
-
-
-
+	return;
+}
 
 static void printEvent(const XEvent *const event){
 	const XEvent dereferencedEvent = *event;
