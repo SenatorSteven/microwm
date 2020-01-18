@@ -13,8 +13,7 @@ static void printEvent(const XEvent *const event);
 static void dealWithKeypress();
 
 int main(void){
-	display = XOpenDisplay(NULL);
-	if(display){
+	if((display = XOpenDisplay(NULL))){
 
 
 
@@ -32,7 +31,11 @@ int main(void){
 
 
 
-		Window windowContainer = windowContainer = XCreateSimpleWindow(display, XDefaultRootWindow(display), (1920 - 500) / 2, (1080 - 500) / 2, 500, 500, 1, 0xFFFFFFFF, 0xFF000000);
+		Window windowContainer;
+		unsigned int currentWindow = 0;
+
+		windowContainer = XCreateSimpleWindow(display, XDefaultRootWindow(display), (1920 - 500) / 2, (1080 - 500) / 2, 500, 500, 1, 0xFFFFFFFF, 0xFF000000);
+		// XSelectInput(display, windowContainer, SubstructureNotifyMask);
 
 
 
@@ -52,23 +55,18 @@ int main(void){
 
 			}else if(event.type == MapRequest){
 				fprintf(stdout, "mapped\n");
+				XMoveWindow(display, windowContainer, (currentWindow + 1) * 80, (currentWindow + 1) * 45);
 				XReparentWindow(display, event.xmaprequest.window, windowContainer, 0, 0);
 				XAddToSaveSet(display, event.xmaprequest.window);
 				XMapWindow(display, windowContainer);
 				XMapWindow(display, event.xmaprequest.window);
+				XSetInputFocus(display, windowContainer, RevertToNone, CurrentTime);
 
 
 
+				++currentWindow;
 			}else if(event.type == UnmapNotify){
-				if(event.xunmap.window != windowContainer){
-					XUnmapWindow(display, windowContainer);
-					// XReparentWindow(display, event.xunmap.window, XDefaultRootWindow(display), 0, 0);
-					// XRemoveFromSaveSet(display, event.xunmap.window);
-					XDestroyWindow(display, windowContainer);
-				}
-
-
-
+				fprintf(stdout, "unmapped\n");
 			}else if(event.type == DestroyNotify){
 				fprintf(stdout, "destroyed\n");
 			}
@@ -90,12 +88,12 @@ static void dealWithKeypress(){
 
 
 
-		if(event.xbutton.subwindow != focusedWindow){
+		/*if(event.xbutton.subwindow != focusedWindow){
 			focusedWindow = event.xbutton.subwindow;
 			XRaiseWindow(display, focusedWindow);
-			int revert;
+			int revert = RevertToNone;
 			XSetInputFocus(display, focusedWindow, revert, CurrentTime);
-		}
+		}*/
 
 
 
@@ -106,28 +104,44 @@ static void dealWithKeypress(){
 				XMoveResizeWindow(display, event.xkey.subwindow, XDisplayWidth(display, XDefaultScreen(display)) / 4, XDisplayHeight(display, XDefaultScreen(display)) / 4, XDisplayWidth(display, XDefaultScreen(display)) / 2, XDisplayHeight(display, XDefaultScreen(display)) / 2);
 			}else{
 				XMoveResizeWindow(display, event.xkey.subwindow, 0, 0, XDisplayWidth(display, XDefaultScreen(display)), XDisplayHeight(display, XDefaultScreen(display)));
+				XMapRaised(display, event.xkey.subwindow);
 			}
 		}
+
+
+
 	}else if(event.xkey.keycode == 111 && event.xkey.state == Mod4Mask){
 		if(event.xkey.subwindow != None){
 			XGetWindowAttributes(display, event.xkey.subwindow, &windowAttributes);
 			XMoveResizeWindow(display, event.xkey.subwindow, windowAttributes.x, 0, XDisplayWidth(display, XDefaultScreen(display)) / 2, XDisplayHeight(display, XDefaultScreen(display)) / 2);
 		}
+
+
+
 	}else if(event.xkey.keycode == 113 && event.xkey.state == Mod4Mask){
 		if(event.xkey.subwindow != None){
 			XGetWindowAttributes(display, event.xkey.subwindow, &windowAttributes);
 			XMoveResizeWindow(display, event.xkey.subwindow, 0, windowAttributes.y, XDisplayWidth(display, XDefaultScreen(display)) / 2, XDisplayHeight(display, XDefaultScreen(display)) / 2);
 		}
+
+
+
 	}else if(event.xkey.keycode == 114 && event.xkey.state == Mod4Mask){
 		if(event.xkey.subwindow != None){
 			XGetWindowAttributes(display, event.xkey.subwindow, &windowAttributes);
 			XMoveResizeWindow(display, event.xkey.subwindow, XDisplayWidth(display, XDefaultScreen(display)) / 2, windowAttributes.y, XDisplayWidth(display, XDefaultScreen(display)) / 2, XDisplayHeight(display, XDefaultScreen(display)) / 2);
 		}
+
+
+
 	}else if(event.xkey.keycode == 116 && event.xkey.state == Mod4Mask){
 		if(event.xkey.subwindow != None){
 			XGetWindowAttributes(display, event.xkey.subwindow, &windowAttributes);
 			XMoveResizeWindow(display, event.xkey.subwindow, windowAttributes.x, XDisplayHeight(display, XDefaultScreen(display)) / 2, XDisplayWidth(display, XDefaultScreen(display)) / 2, XDisplayHeight(display, XDefaultScreen(display)) / 2);
 		}
+
+
+
 	}
 	return;
 }
