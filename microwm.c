@@ -34,6 +34,11 @@ XEvent event;
 XWindowAttributes windowAttributes;
 Window focusedWindow;
 
+typedef struct{
+	Window window;
+	Window subwindow;
+} Container;
+
 static void dealWithKeypress();
 
 int main(void){
@@ -55,11 +60,11 @@ int main(void){
 
 
 
-		Window windowContainer;
+		Container container;
 		unsigned int currentWindow = 0;
 
-		windowContainer = XCreateSimpleWindow(display, XDefaultRootWindow(display), (1920 - 500) / 2, (1080 - 500) / 2, 500, 500, 1, 0xFFFFFFFF, 0xFF000000);
-		// XSelectInput(display, windowContainer, SubstructureNotifyMask);
+		container.window = XCreateSimpleWindow(display, XDefaultRootWindow(display), (XDisplayWidth(display, XDefaultScreen(display)) - 500) / 2, (XDisplayHeight(display, XDefaultScreen(display)) - 500) / 2, 500, 500, 1, 0xFFFFFFFF, 0xFF000000);
+		XSelectInput(display, container.window, StructureNotifyMask);
 
 
 
@@ -79,20 +84,47 @@ int main(void){
 
 			}else if(event.type == MapRequest){
 				fprintf(stdout, "mapped\n");
-				XMoveWindow(display, windowContainer, (currentWindow + 1) * 80, (currentWindow + 1) * 45);
-				XReparentWindow(display, event.xmaprequest.window, windowContainer, 0, 0);
-				XAddToSaveSet(display, event.xmaprequest.window);
-				XMapWindow(display, windowContainer);
-				XMapWindow(display, event.xmaprequest.window);
-				XSetInputFocus(display, windowContainer, RevertToNone, CurrentTime);
+				container.subwindow = event.xmaprequest.window;
+				XMoveWindow(display, container.window, 500, 500);
+				XReparentWindow(display, container.subwindow, container.window, 0, 0);
+				XAddToSaveSet(display, container.subwindow);
+				XMapWindow(display, container.window);
+				XMapWindow(display, container.subwindow);
+				XSetInputFocus(display, container.window, RevertToNone, CurrentTime);
 
 
 
 				++currentWindow;
+
+
+
 			}else if(event.type == UnmapNotify){
 				fprintf(stdout, "unmapped\n");
+				XUnmapWindow(display, container.window);
+
+
+
 			}else if(event.type == DestroyNotify){
 				fprintf(stdout, "destroyed\n");
+
+
+
+			}else if(event.type == ConfigureNotify){
+				fprintf(stdout, "configured\n");
+				XWindowAttributes windowAttributes;
+				XGetWindowAttributes(display, container.window, &windowAttributes);
+				XMoveResizeWindow(display, container.subwindow, 0, 0, windowAttributes.width, windowAttributes.height);
+
+
+
+			}else if(event.type == ConfigureNotify){
+				fprintf(stdout, "configured\n");
+				XWindowAttributes windowAttributes;
+				XGetWindowAttributes(display, container.window, &windowAttributes);
+				XMoveResizeWindow(display, container.subwindow, 0, 0, windowAttributes.width, windowAttributes.height);
+
+
+
 			}
 		}
 
