@@ -1,4 +1,4 @@
-/* printEvent.h
+/* getParameters.h
 
 MIT License
 
@@ -22,9 +22,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
-#ifndef PRINTEVENT_H
-#define PRINTEVENT_H
+#ifndef GETPARAMETERS_H
+#define GETPARAMETERS_H
 
-void printEvent(const XEvent event);
+bool getParameters(const unsigned int parameterCount, const char *const *const parameterVector);
 
 #endif
