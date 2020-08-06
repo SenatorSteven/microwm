@@ -25,78 +25,77 @@ SOFTWARE. */
 #include <stdio.h>
 #include <X11/Xlib.h>
 
-void printEvent(const XEvent *const event){
-	const XEvent dereferencedEvent = *event;
-	fprintf(stdout, "event.type: %u, ", dereferencedEvent.type);
-	if(dereferencedEvent.type == KeyPress){
+void printEvent(const XEvent event){
+	fprintf(stdout, "event.type: %u, ", event.type);
+	if(event.type == KeyPress){
 		fprintf(stdout, "KeyPress\n");
-	}else if(dereferencedEvent.type == KeyRelease){
+	}else if(event.type == KeyRelease){
 		fprintf(stdout, "KeyRelease\n");
-	}else if(dereferencedEvent.type == ButtonPress){
+	}else if(event.type == ButtonPress){
 		fprintf(stdout, "ButtonPress\n");
-	}else if(dereferencedEvent.type == ButtonRelease){
+	}else if(event.type == ButtonRelease){
 		fprintf(stdout, "ButtonRelease\n");
-	}else if(dereferencedEvent.type == MotionNotify){
+	}else if(event.type == MotionNotify){
 		fprintf(stdout, "MotionNotify\n");
-	}else if(dereferencedEvent.type == EnterNotify){
+	}else if(event.type == EnterNotify){
 		fprintf(stdout, "EnterNotify\n");
-	}else if(dereferencedEvent.type == LeaveNotify){
+	}else if(event.type == LeaveNotify){
 		fprintf(stdout, "LeaveNotify\n");
-	}else if(dereferencedEvent.type == FocusIn){
+	}else if(event.type == FocusIn){
 		fprintf(stdout, "FocusIn\n");
-	}else if(dereferencedEvent.type == FocusOut){
+	}else if(event.type == FocusOut){
 		fprintf(stdout, "FocusOut\n");
-	}else if(dereferencedEvent.type == KeymapNotify){
+	}else if(event.type == KeymapNotify){
 		fprintf(stdout, "KeymapNotify\n");
-	}else if(dereferencedEvent.type == Expose){
+	}else if(event.type == Expose){
 		fprintf(stdout, "Expose\n");
-	}else if(dereferencedEvent.type == GraphicsExpose){
+	}else if(event.type == GraphicsExpose){
 		fprintf(stdout, "GraphicsExpose\n");
-	}else if(dereferencedEvent.type == NoExpose){
+	}else if(event.type == NoExpose){
 		fprintf(stdout, "NoExpose\n");
-	}else if(dereferencedEvent.type == VisibilityNotify){
+	}else if(event.type == VisibilityNotify){
 		fprintf(stdout, "VisibilityNotify\n");
-	}else if(dereferencedEvent.type == CreateNotify){
+	}else if(event.type == CreateNotify){
 		fprintf(stdout, "CreateNotify\n");
-	}else if(dereferencedEvent.type == DestroyNotify){
+	}else if(event.type == DestroyNotify){
 		fprintf(stdout, "DestroyNotify\n");
-	}else if(dereferencedEvent.type == UnmapNotify){
+	}else if(event.type == UnmapNotify){
 		fprintf(stdout, "UnmapNotify\n");
-	}else if(dereferencedEvent.type == MapNotify){
+	}else if(event.type == MapNotify){
 		fprintf(stdout, "MapNotify\n");
-	}else if(dereferencedEvent.type == MapRequest){
+	}else if(event.type == MapRequest){
 		fprintf(stdout, "MapRequest\n");
-	}else if(dereferencedEvent.type == ReparentNotify){
+	}else if(event.type == ReparentNotify){
 		fprintf(stdout, "ReparentNotify\n");
-	}else if(dereferencedEvent.type == ConfigureNotify){
+	}else if(event.type == ConfigureNotify){
 		fprintf(stdout, "ConfigureNotify\n");
-	}else if(dereferencedEvent.type == ConfigureRequest){
+	}else if(event.type == ConfigureRequest){
 		fprintf(stdout, "ConfigureRequest\n");
-	}else if(dereferencedEvent.type == GravityNotify){
+	}else if(event.type == GravityNotify){
 		fprintf(stdout, "GravityNotify\n");
-	}else if(dereferencedEvent.type == ResizeRequest){
+	}else if(event.type == ResizeRequest){
 		fprintf(stdout, "ResizeRequest\n");
-	}else if(dereferencedEvent.type == CirculateNotify){
+	}else if(event.type == CirculateNotify){
 		fprintf(stdout, "CirculateNotify\n");
-	}else if(dereferencedEvent.type == CirculateRequest){
+	}else if(event.type == CirculateRequest){
 		fprintf(stdout, "CirculateRequest\n");
-	}else if(dereferencedEvent.type == PropertyNotify){
+	}else if(event.type == PropertyNotify){
 		fprintf(stdout, "PropertyNotify\n");
-	}else if(dereferencedEvent.type == SelectionClear){
+	}else if(event.type == SelectionClear){
 		fprintf(stdout, "SelectionClear\n");
-	}else if(dereferencedEvent.type == SelectionRequest){
+	}else if(event.type == SelectionRequest){
 		fprintf(stdout, "SelectionRequest\n");
-	}else if(dereferencedEvent.type == SelectionNotify){
+	}else if(event.type == SelectionNotify){
 		fprintf(stdout, "SelectionNotify\n");
-	}else if(dereferencedEvent.type == ColormapNotify){
+	}else if(event.type == ColormapNotify){
 		fprintf(stdout, "ColormapNotify\n");
-	}else if(dereferencedEvent.type == ClientMessage){
+	}else if(event.type == ClientMessage){
 		fprintf(stdout, "ClientMessage\n");
-	}else if(dereferencedEvent.type == MappingNotify){
+	}else if(event.type == MappingNotify){
 		fprintf(stdout, "MappingNotify\n");
-	}else if(dereferencedEvent.type == GenericEvent){
+	}else if(event.type == GenericEvent){
 		fprintf(stdout, "GenericEvent\n");
-	}else if(dereferencedEvent.type == LASTEvent){
+	}else if(event.type == LASTEvent){
 		fprintf(stdout, "LASTEvent\n");
 	}
 	return;

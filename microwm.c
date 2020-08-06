@@ -22,182 +22,157 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
+#include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include <X11/Xatom.h>
 #include <X11/Xlib.h>
-#include "headers/printEvent.h"
+#include "headers/defines.h"
+#include "headers/getParameters.h"
+#include "headers/eventLoop.h"
 
-#define WindowAmount 20
+extern const char *programName;
+extern Mode mode;
+extern Display *display;
 
-Display *display;
-XEvent event;
-XWindowAttributes windowAttributes;
-Window focusedWindow;
+static void setRootProperties(void);
 
-typedef struct{
-	Window window;
-	Window subwindow;
-} Container;
-
-static void dealWithKeypress();
-
-int main(void){
-	if((display = XOpenDisplay(NULL))){
-
-
-
-		XSelectInput(display, XDefaultRootWindow(display), KeyPressMask | SubstructureRedirectMask | StructureNotifyMask);
-
-
-
-		XGrabKey(display, 40, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
-		XGrabKey(display, 41, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
-		XGrabKey(display, 95, None, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
-		XGrabKey(display, 111, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
-		XGrabKey(display, 113, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
-		XGrabKey(display, 114, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
-		XGrabKey(display, 116, Mod4Mask, XDefaultRootWindow(display), True, GrabModeAsync, GrabModeAsync);
-
-
-
-		Container container;
-		unsigned int currentWindow = 0;
-
-		container.window = XCreateSimpleWindow(display, XDefaultRootWindow(display), (XDisplayWidth(display, XDefaultScreen(display)) - 500) / 2, (XDisplayHeight(display, XDefaultScreen(display)) - 500) / 2, 500, 500, 1, 0xFFFFFFFF, 0xFF000000);
-		XSelectInput(display, container.window, StructureNotifyMask);
-
-
-
+int main(const int argumentCount, const char *const *const argumentVector){
+	if(getParameters((unsigned int)argumentCount, argumentVector)){
 		for(;;){
-			XNextEvent(display, &event);
-			printEvent(&event);
-			if(event.type == KeyPress){
-				dealWithKeypress();
-
-
-
-			}else if(event.type == ConfigureRequest){
-				fprintf(stdout, "configured\n");
-				XResizeWindow(display, event.xconfigure.window, 500, 500);
-
-
-
-			}else if(event.type == MapRequest){
-				fprintf(stdout, "mapped\n");
-				container.subwindow = event.xmaprequest.window;
-				XMoveWindow(display, container.window, 500, 500);
-				XReparentWindow(display, container.subwindow, container.window, 0, 0);
-				XAddToSaveSet(display, container.subwindow);
-				XMapWindow(display, container.window);
-				XMapWindow(display, container.subwindow);
-				XSetInputFocus(display, container.window, RevertToNone, CurrentTime);
-
-
-
-				++currentWindow;
-
-
-
-			}else if(event.type == UnmapNotify){
-				fprintf(stdout, "unmapped\n");
-				XUnmapWindow(display, container.window);
-
-
-
-			}else if(event.type == DestroyNotify){
-				fprintf(stdout, "destroyed\n");
-
-
-
-			}else if(event.type == ConfigureNotify){
-				fprintf(stdout, "configured\n");
-				XWindowAttributes windowAttributes;
-				XGetWindowAttributes(display, container.window, &windowAttributes);
-				XMoveResizeWindow(display, container.subwindow, 0, 0, windowAttributes.width, windowAttributes.height);
-
-
-
-			}else if(event.type == ConfigureNotify){
-				fprintf(stdout, "configured\n");
-				XWindowAttributes windowAttributes;
-				XGetWindowAttributes(display, container.window, &windowAttributes);
-				XMoveResizeWindow(display, container.subwindow, 0, 0, windowAttributes.width, windowAttributes.height);
-
-
-
+			mode = ContinueMode;
+			if((display = XOpenDisplay(NULL))){
+				setRootProperties();
+				eventLoop();
+				XCloseDisplay(display);
+			}else{
+				fprintf(stderr, "%s: could not connect to server\n", programName);
+				break;
+			}
+			if(mode == ExitMode){
+				break;
 			}
 		}
-
-
-
-		XCloseDisplay(display);
-	}else{
-		fprintf(stderr, "could not connect to server\n");
 	}
 	return 0;
 }
+static void setRootProperties(void){
+	// WM_STATE
 
-static void dealWithKeypress(){
-	if(event.xkey.keycode == 40 && event.xkey.state == Mod4Mask){
-		system("dmenu_run -i -b -p \"DMenu | <MatrixCustom> | TheSenatorSteven\" -nb \"#000000\" -sb \"#1f1f1f\" -nf \"#00ff00\" -sf \"#00ff00\"");
-	}else if(event.xkey.keycode == 41 && event.xkey.state == Mod4Mask){
+	// _NET_CLIENT_LIST
+	// _NET_NUMBER_OF_DESKTOPS
+	// _NET_DESKTOP_GEOMETRY
+	// _NET_DESKTOP_VIEWPORT
+	// _NET_CURRENT_DESKTOP
+	// _NET_DESKTOP_NAMES
+	// _NET_ACTIVE_WINDOW
+	// _NET_WORKAREA
+	// _NET_SUPPORTING_WM_CHECK
+	// _NET_VIRTUAL_ROOTS
+	// _NET_DESKTOP_LAYOUT
+	// _NET_SHOWING_DESKTOP
+
+	// _NET_CLOSE_WINDOW
+	// _NET_MOVERESIZE_WINDOW
+	// _NET_WM_MOVERESIZE
+	// _NET_RESTACK_WINDOW
+	// _NET_REQUEST_FRAME_EXTENTS
+
+	// _NET_WM_PING
+	// _NET_WM_SYNC_REQUEST
+
+	// _NET_WM_NAME
+	// _NET_WM_VISIBLE_NAME
+	// _NET_WM_ICON_NAME
+	// _NET_WM_VISIBLE_ICON_NAME
+	// _NET_WM_DESKTOP
+	// _NET_WM_WINDOW_TYPE
+
+	// _NET_WM_STATE
+		// _NET_WM_STATE_MODAL
+		// _NET_WM_STATE_STICKY
+		// _NET_WM_STATE_MAXIMIZED_VERT
+		// _NET_WM_STATE_MAXIMIZED_HORZ
+		// _NET_WM_STATE_SHADED
+		// _NET_WM_STATE_SKIP_TASKBAR
+		// _NET_WM_STATE_SKIP_PAGER
+		// _NET_WM_STATE_HIDDEN
+		// _NET_WM_STATE_FULLSCREEN
+		// _NET_WM_STATE_ABOVE
+		// _NET_WM_STATE_BELOW
+		// _NET_WM_STATE_DEMANDS_ATTENTION
+
+	// _NET_WM_ALLOWED_ACTIONS
+		// _NET_WM_ACTION_MOVE
+		// _NET_WM_ACTION_RESIZE
+		// _NET_WM_ACTION_MINIMIZE
+		// _NET_WM_ACTION_SHADE
+		// _NET_WM_ACTION_STICK
+		// _NET_WM_ACTION_MAXIMIZE_HORZ
+		// _NET_WM_ACTION_MAXIMIZE_VERT
+		// _NET_WM_ACTION_FULLSCREEN
+		// _NET_WM_ACTION_CHANGE_DESKTOP
+		// _NET_WM_ACTION_CLOSE
+
+	// _NET_WM_STRUT
+	// _NET_WM_STRUT_PARTIAL
+	// _NET_WM_PID
+	// _NET_WM_USER_TIME
+	// _NET_FRAME_EXTENTS
 
 
 
-		/*if(event.xbutton.subwindow != focusedWindow){
-			focusedWindow = event.xbutton.subwindow;
-			XRaiseWindow(display, focusedWindow);
-			int revert = RevertToNone;
-			XSetInputFocus(display, focusedWindow, revert, CurrentTime);
-		}*/
+	const unsigned char properties[1] = {
+		XInternAtom(display, "_NET_SUPPORTED", False)
+
+		// _NET_CLIENT_LIST
+			// _NET_CLIENT_LIST_STACKING
+
+		// _NET_NUMBER_OF_DESKTOPS
+		// _NET_DESKTOP_GEOMETRY
+		// _NET_DESKTOP_VIEWPORT
+		// _NET_CURRENT_DESKTOP
+		// _NET_DESKTOP_NAMES
+		// _NET_ACTIVE_WINDOW
+		// _NET_WORKAREA
+		// _NET_SUPPORTING_WM_CHECK
+		// _NET_VIRTUAL_ROOTS
+		// _NET_DESKTOP_LAYOUT
+		// _NET_SHOWING_DESKTOP
+
+		// _NET_CLOSE_WINDOW
+		// _NET_MOVERESIZE_WINDOW
+
+		// _NET_WM_MOVERESIZE
+			// _NET_WM_MOVERESIZE_SIZE_TOPLEFT
+			// _NET_WM_MOVERESIZE_SIZE_TOP
+			// _NET_WM_MOVERESIZE_SIZE_TOPRIGHT
+			// _NET_WM_MOVERESIZE_SIZE_RIGHT
+			// _NET_WM_MOVERESIZE_SIZE_BOTTOMRIGHT
+			// _NET_WM_MOVERESIZE_SIZE_BOTTOM
+			// _NET_WM_MOVERESIZE_SIZE_BOTTOMLEFT
+			// _NET_WM_MOVERESIZE_SIZE_LEFT
+			// _NET_WM_MOVERESIZE_MOVE
+			// _NET_WM_MOVERESIZE_SIZE_KEYBOARD
+			// _NET_WM_MOVERESIZE_MOVE_KEYBOARD
+
+		// _NET_RESTACK_WINDOW
+		// _NET_REQUEST_FRAME_EXTENTS
+
+		// _NET_WM_PING
+		// _NET_WM_SYNC_REQUEST
+	};
 
 
 
-	}else if(event.xkey.keycode == 95 && event.xkey.state == None){
-		if(event.xkey.subwindow != None){
-			XGetWindowAttributes(display, event.xkey.subwindow, &windowAttributes);
-			if(windowAttributes.x == 0 && windowAttributes.y == 0 && windowAttributes.width == XDisplayWidth(display, XDefaultScreen(display)) && windowAttributes.height == XDisplayHeight(display, XDefaultScreen(display))){
-				XMoveResizeWindow(display, event.xkey.subwindow, XDisplayWidth(display, XDefaultScreen(display)) / 4, XDisplayHeight(display, XDefaultScreen(display)) / 4, XDisplayWidth(display, XDefaultScreen(display)) / 2, XDisplayHeight(display, XDefaultScreen(display)) / 2);
-			}else{
-				XMoveResizeWindow(display, event.xkey.subwindow, 0, 0, XDisplayWidth(display, XDefaultScreen(display)), XDisplayHeight(display, XDefaultScreen(display)));
-				XMapRaised(display, event.xkey.subwindow);
-			}
-		}
+	XChangeProperty(display, XDefaultRootWindow(display), XInternAtom(display, "_NET_SUPPORTED", False), XA_ATOM, 32, PropModeReplace, properties, 1);
 
 
 
-	}else if(event.xkey.keycode == 111 && event.xkey.state == Mod4Mask){
-		if(event.xkey.subwindow != None){
-			XGetWindowAttributes(display, event.xkey.subwindow, &windowAttributes);
-			XMoveResizeWindow(display, event.xkey.subwindow, windowAttributes.x, 0, XDisplayWidth(display, XDefaultScreen(display)) / 2, XDisplayHeight(display, XDefaultScreen(display)) / 2);
-		}
 
 
 
-	}else if(event.xkey.keycode == 113 && event.xkey.state == Mod4Mask){
-		if(event.xkey.subwindow != None){
-			XGetWindowAttributes(display, event.xkey.subwindow, &windowAttributes);
-			XMoveResizeWindow(display, event.xkey.subwindow, 0, windowAttributes.y, XDisplayWidth(display, XDefaultScreen(display)) / 2, XDisplayHeight(display, XDefaultScreen(display)) / 2);
-		}
 
 
 
-	}else if(event.xkey.keycode == 114 && event.xkey.state == Mod4Mask){
-		if(event.xkey.subwindow != None){
-			XGetWindowAttributes(display, event.xkey.subwindow, &windowAttributes);
-			XMoveResizeWindow(display, event.xkey.subwindow, XDisplayWidth(display, XDefaultScreen(display)) / 2, windowAttributes.y, XDisplayWidth(display, XDefaultScreen(display)) / 2, XDisplayHeight(display, XDefaultScreen(display)) / 2);
-		}
-
-
-
-	}else if(event.xkey.keycode == 116 && event.xkey.state == Mod4Mask){
-		if(event.xkey.subwindow != None){
-			XGetWindowAttributes(display, event.xkey.subwindow, &windowAttributes);
-			XMoveResizeWindow(display, event.xkey.subwindow, windowAttributes.x, XDisplayHeight(display, XDefaultScreen(display)) / 2, XDisplayWidth(display, XDefaultScreen(display)) / 2, XDisplayHeight(display, XDefaultScreen(display)) / 2);
-		}
-
-
-
-	}
 	return;
 }

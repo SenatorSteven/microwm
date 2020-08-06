@@ -22,9 +22,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-#!/bin/bash
+#!/bin/sh
+
 if [ ! -d "output" ]; then
 	mkdir output
 fi
-gcc -Wall -Wextra -pedantic microwm.c printEvent.c -lX11 -lXrandr -o output/truemicrowm
+gcc -Wall -Wextra -pedantic -std=c99 globals.c microwm.c getParameters.c eventLoop.c printEvent.c -lX11 -lXrandr -o output/microwm
 exit 0
