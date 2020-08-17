@@ -35,55 +35,75 @@ SOFTWARE. */
 #define RestartMode /*------------------*/ 1
 #define ExitMode /*---------------------*/ 2
 
+#define NoOptions /*---------------------*/ 0
+#define AllowGridBoundaryBreakXOption /*-*/ (1 << 0)
+#define AllowGridBoundaryBreakYOption /*-*/ (1 << 1)
+
+#define FloatingManagementMode /*-------*/ 1
+#define GridManagementMode /*-----------*/ 2
+#define TilingManagementMode /*---------*/ 3
+
 #define NoCommand /*--------------------*/ 0
-#define ShowGridCommand /*--------------*/ 1
-#define EnlargeGridCommand /*-----------*/ 2
-#define ShrinkGridCommand /*------------*/ 3
-#define RecascadeCommand /*-------------*/ 4
-#define RestartCommand /*---------------*/ 5
-#define ExitCommand /*------------------*/ 6
-#define MoveCommand /*------------------*/ 7
-#define MoveTopCommand /*---------------*/ 8
-#define MoveBottomCommand /*------------*/ 9
-#define MoveLeftCommand /*--------------*/ 10
-#define MoveRightCommand /*-------------*/ 11
-#define MoveCenterCommand /*------------*/ 12
-#define MoveTopLeftCommand /*-----------*/ 13
-#define MoveTopRightCommand /*----------*/ 14
-#define MoveBottomLeftCommand /*--------*/ 15
-#define MoveBottomRightCommand /*-------*/ 16
-#define MoveNextMonitorCommand /*-------*/ 17
-#define MovePreviousMonitorCommand /*---*/ 18
-#define AddWindowToGrid /*--------------*/ 19
-#define RemoveWindowFromGrid /*---------*/ 20
-#define MoveFirstGridSlotCommand /*-----*/ 21
-#define MoveLastGridSlotCommand /*------*/ 22
-#define ExtendWindowUpCommand /*--------*/ 23
-#define ExtendWindowDownCommand /*------*/ 24
-#define ExtendWindowLeftCommand /*------*/ 25
-#define ExtendWindowRightCommand /*-----*/ 26
-#define ExtendWindowUpLeftCommand /*----*/ 27
-#define ExtendWindowUpRightCommand /*---*/ 28
-#define ExtendWindowDownLeftCommand /*--*/ 29
-#define ExtendWindowDownRightCommand /*-*/ 30
-#define ShrinkWindowUpCommand /*--------*/ 31
-#define ShrinkWindowDownCommand /*------*/ 32
-#define ShrinkWindowLeftCommand /*------*/ 33
-#define ShrinkWindowRightCommand /*-----*/ 34
-#define ShrinkWindowUpLeftCommand /*----*/ 35
-#define ShrinkWindowUpRightCommand /*---*/ 36
-#define ShrinkWindowDownLeftCommand /*--*/ 37
-#define ShrinkWindowDownRightCommand /*-*/ 38
-#define FullscreenCommand /*------------*/ 39
-#define BigscreenCommand /*-------------*/ 40
-#define CloseCommand /*-----------------*/ 41
+#define SystemCommand /*----------------*/ 1
+#define FloatingModeCommand /*----------*/ 2
+#define GridModeCommand /*--------------*/ 3
+#define TilingModeCommand /*------------*/ 4
+#define ShowGridCommand /*--------------*/ 5
+#define EnlargeGridCommand /*-----------*/ 6
+#define ShrinkGridCommand /*------------*/ 7
+#define RecascadeCommand /*-------------*/ 8
+#define RestartCommand /*---------------*/ 9
+#define ExitCommand /*------------------*/ 10
+#define MoveCommand /*------------------*/ 11
+#define MoveTopCommand /*---------------*/ 12
+#define MoveBottomCommand /*------------*/ 13
+#define MoveLeftCommand /*--------------*/ 14
+#define MoveRightCommand /*-------------*/ 15
+#define MoveCenterCommand /*------------*/ 16
+#define MoveTopLeftCommand /*-----------*/ 17
+#define MoveTopRightCommand /*----------*/ 18
+#define MoveBottomLeftCommand /*--------*/ 19
+#define MoveBottomRightCommand /*-------*/ 20
+#define MoveNextMonitorCommand /*-------*/ 21
+#define MovePreviousMonitorCommand /*---*/ 22
+#define AddWindowToGridCommand /*-------*/ 23
+#define RemoveWindowFromGridCommand /*--*/ 24
+#define ToggleWindowGridCommand /*------*/ 25
+#define MoveFirstGridSlotCommand /*-----*/ 26
+#define MoveLastGridSlotCommand /*------*/ 27
+#define MoveAboveGridSlotCommand /*-----*/ 28
+#define MoveBelowGridSlotCommand /*-----*/ 29
+#define MoveNextGridSlotCommand /*------*/ 30
+#define MovePreviousGridSlotCommand /*--*/ 31
+#define ExtendWindowUpCommand /*--------*/ 32
+#define ExtendWindowDownCommand /*------*/ 33
+#define ExtendWindowLeftCommand /*------*/ 34
+#define ExtendWindowRightCommand /*-----*/ 35
+#define ExtendWindowUpLeftCommand /*----*/ 36
+#define ExtendWindowUpRightCommand /*---*/ 37
+#define ExtendWindowDownLeftCommand /*--*/ 38
+#define ExtendWindowDownRightCommand /*-*/ 39
+#define ShrinkWindowUpCommand /*--------*/ 40
+#define ShrinkWindowDownCommand /*------*/ 41
+#define ShrinkWindowLeftCommand /*------*/ 42
+#define ShrinkWindowRightCommand /*-----*/ 43
+#define ShrinkWindowUpLeftCommand /*----*/ 44
+#define ShrinkWindowUpRightCommand /*---*/ 45
+#define ShrinkWindowDownLeftCommand /*--*/ 46
+#define ShrinkWindowDownRightCommand /*-*/ 47
+#define FullscreenCommand /*------------*/ 48
+#define BigscreenCommand /*-------------*/ 49
+#define CloseCommand /*-----------------*/ 50
+#define KillCommand /*------------------*/ 51
 
 #define RootCommandCeiling /*-----------*/ ExitCommand
 
 typedef uint8_t bool;
 typedef uint8_t Mode;
 typedef uint32_t ARGB;
+typedef uint8_t ManagementMode;
 typedef uint8_t Command;
+typedef uint8_t Options;
 
 typedef struct{
 	uint16_t keycode;
