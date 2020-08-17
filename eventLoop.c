@@ -44,6 +44,8 @@ SOFTWARE. */
 #define MoveResizeSubaction /*----*/ 1
 #define ResizeSubaction /*--------*/ 2
 
+
+
 #define NoPointerInfo /*----------*/ 0
 #define MapPointerInfo /*---------*/ (1 << 0)
 #define MovePointerInfo /*--------*/ (1 << 1)
@@ -53,6 +55,8 @@ SOFTWARE. */
 
 #define MoveMonitorPointerInfo /*-*/ (1 << 4)
 
+
+
 extern const char *programName;
 extern Mode mode;
 extern Display *display;
@@ -61,8 +65,9 @@ typedef uint8_t PointerInfo;
 
 typedef struct{
 	uint8_t mode;
-	int x;
-	int y;
+	bool overrideGridWindows;
+	int offsetX;
+	int offsetY;
 } Cascade;
 
 typedef struct{
@@ -75,42 +80,36 @@ typedef struct{
 	unsigned int gridHeight;
 } Container;
 
-
-
-static void getGridSize(const XRRMonitorInfo monitorInfo, const unsigned int gridX, const unsigned int gridY, const unsigned int gridWidth, const unsigned int gridHeight, unsigned int *const width, unsigned int *const height){
-	if(width){
-		*width = monitorInfo.width / gridWidth;
-		if(gridX == gridWidth / 2){
-			*width = monitorInfo.width - (gridWidth - 1) * *width;
-		}
-	}
-	if(height){
-		*height = monitorInfo.height / gridHeight;
-		if(gridY == gridHeight / 2){
-			*height = monitorInfo.height - (gridHeight - 1) * *height;
-		}
-	}
-	return;
-}
-
-
-
 static void grabRootKeysButtons(const unsigned int shortcutAmount, const Shortcut *const shortcut, const unsigned int buttonAmount, const Button *const button);
 static void grabContainerKeysButtons(const Window w, const unsigned int shortcutAmount, const Shortcut *const shortcut, const unsigned int buttonAmount, const Button *const button);
 static void createGrid(const unsigned int monitorAmount, const unsigned int gridWidth, const unsigned int gridHeight, const ARGB gridSubwindowBorderColor, const ARGB gridSubwindowBackgroundColor, Window *const grid);
+static void getGridSlotData(const XRRMonitorInfo monitorInfo, const unsigned int gridX, const unsigned int gridY, const unsigned int gridWidth, const unsigned int gridHeight, int *const x, int *const y, unsigned int *const width, unsigned int *const height);
 static XRRMonitorInfo getPointerMonitorInfo(void);
 static XRRMonitorInfo getWindowMonitorInfo(const Window w);
 static void clearWindowProperties(const Window w);
 static void copyWindowProperties(const Window source, const Window destination);
 
 void eventLoop(void){
+	ManagementMode managementMode = FloatingManagementMode;
+
+
+
+	Options option = NoOptions;
+	option = AllowGridBoundaryBreakXOption | AllowGridBoundaryBreakYOption;
+
+
+
+	unsigned int minimumTilingWidth = 20;
+	unsigned int minimumTilingHeight = 20;
+
 	bool shouldIncreaseContainers = 0;
 	unsigned int containerIncrementAmount = 5;
 
 	Cascade cascade = {
 		.mode = SmartCascadeMode,
-		.x = 20,
-		.y = 20
+		.overrideGridWindows = 0,
+		.offsetX = 20,
+		.offsetY = 20
 	};
 
 	Window lastCreatedWindow = None;
@@ -125,34 +124,40 @@ void eventLoop(void){
 	unsigned int innerBorder = 1;
 	const unsigned int innerBorders = 2 * innerBorder;
 
-	ARGB containerBorderColor = 0x0F000000;
-	ARGB containerBackgroundColor = 0xFFFFFFFF;
+	// ARGB containerBorderColor = 0x0F000000;
+	ARGB containerBorderColor = 0x7F000000;
+	ARGB containerBackgroundColor = 0xFF00FF00;
+
+
+
+	ARGB inGridContainerBackgroundColor = 0xFFFF0000;
+
+
 
 	unsigned int gridWidth = 2;
 	unsigned int gridHeight = 2;
-	unsigned int gridSlotAmount = gridWidth * gridHeight;
 
 	PointerInfo pointerInfo = NoPointerInfo;
 	pointerInfo = MapPointerInfo | MovePointerInfo | RecascadePointerInfo;
 
 	int x;
 	int y;
-	int xpos;
-	int ypos;
+	// int xpos;
+	// int ypos;
 	int xtouse;
 	int ytouse;
 	unsigned int width;
 	unsigned int height;
 
 	uint8_t action = NoAction;
-	uint8_t subaction = NoSubaction;
+	// uint8_t subaction = NoSubaction;
 
 	Container motionContainer;
 
 	bool gridExists = 0;
 	bool gridMapped = 0;
 
-	ARGB gridSubwindowBorderColor = 0x7F7F7FFF;
+	ARGB gridSubwindowBorderColor = 0x10975C57;
 	ARGB gridSubwindowBackgroundColor = 0x00000000;
 
 	unsigned int maxGridWidth = 20;
@@ -192,10 +197,22 @@ void eventLoop(void){
 
 
 
-	unsigned int shortcutAmount = 36;
+	unsigned int shortcutAmount = 45;
 	Shortcut shortcut[shortcutAmount];
 	{
 		unsigned int currentShortcut = 0;
+		shortcut[currentShortcut].keycode = 55;
+		shortcut[currentShortcut].masks = Mod4Mask;
+		shortcut[currentShortcut].command = FloatingModeCommand;
+		++currentShortcut;
+		shortcut[currentShortcut].keycode = 56;
+		shortcut[currentShortcut].masks = Mod4Mask;
+		shortcut[currentShortcut].command = GridModeCommand;
+		++currentShortcut;
+		shortcut[currentShortcut].keycode = 57;
+		shortcut[currentShortcut].masks = Mod4Mask;
+		shortcut[currentShortcut].command = TilingModeCommand;
+		++currentShortcut;
 		shortcut[currentShortcut].keycode = 42;
 		shortcut[currentShortcut].masks = Mod4Mask;
 		shortcut[currentShortcut].command = ShowGridCommand;
@@ -248,21 +265,41 @@ void eventLoop(void){
 		shortcut[currentShortcut].masks = ShiftMask | Mod4Mask;
 		shortcut[currentShortcut].command = MovePreviousMonitorCommand;
 		++currentShortcut;
-		shortcut[currentShortcut].keycode = 38;
+		shortcut[currentShortcut].keycode = 39;
 		shortcut[currentShortcut].masks = Mod4Mask;
-		shortcut[currentShortcut].command = AddWindowToGrid;
+		shortcut[currentShortcut].command = AddWindowToGridCommand;
 		++currentShortcut;
 		shortcut[currentShortcut].keycode = 26;
 		shortcut[currentShortcut].masks = Mod4Mask;
-		shortcut[currentShortcut].command = RemoveWindowFromGrid;
+		shortcut[currentShortcut].command = RemoveWindowFromGridCommand;
 		++currentShortcut;
-		shortcut[currentShortcut].keycode = 113;
+		shortcut[currentShortcut].keycode = 38;
+		shortcut[currentShortcut].masks = Mod4Mask;
+		shortcut[currentShortcut].command = ToggleWindowGridCommand;
+		++currentShortcut;
+		shortcut[currentShortcut].keycode = 10;
 		shortcut[currentShortcut].masks = Mod1Mask | Mod4Mask;
 		shortcut[currentShortcut].command = MoveFirstGridSlotCommand;
 		++currentShortcut;
-		shortcut[currentShortcut].keycode = 114;
+		shortcut[currentShortcut].keycode = 11;
 		shortcut[currentShortcut].masks = Mod1Mask | Mod4Mask;
 		shortcut[currentShortcut].command = MoveLastGridSlotCommand;
+		++currentShortcut;
+		shortcut[currentShortcut].keycode = 111;
+		shortcut[currentShortcut].masks = Mod1Mask | Mod4Mask;
+		shortcut[currentShortcut].command = MoveAboveGridSlotCommand;
+		++currentShortcut;
+		shortcut[currentShortcut].keycode = 116;
+		shortcut[currentShortcut].masks = Mod1Mask | Mod4Mask;
+		shortcut[currentShortcut].command = MoveBelowGridSlotCommand;
+		++currentShortcut;
+		shortcut[currentShortcut].keycode = 114;
+		shortcut[currentShortcut].masks = Mod1Mask | Mod4Mask;
+		shortcut[currentShortcut].command = MoveNextGridSlotCommand;
+		++currentShortcut;
+		shortcut[currentShortcut].keycode = 113;
+		shortcut[currentShortcut].masks = Mod1Mask | Mod4Mask;
+		shortcut[currentShortcut].command = MovePreviousGridSlotCommand;
 		++currentShortcut;
 		shortcut[currentShortcut].keycode = 80;
 		shortcut[currentShortcut].masks = Mod1Mask | Mod4Mask;
@@ -339,6 +376,10 @@ void eventLoop(void){
 		shortcut[currentShortcut].keycode = 24;
 		shortcut[currentShortcut].masks = Mod4Mask;
 		shortcut[currentShortcut].command = CloseCommand;
+		++currentShortcut;
+		shortcut[currentShortcut].keycode = 45;
+		shortcut[currentShortcut].masks = Mod4Mask;
+		shortcut[currentShortcut].command = KillCommand;
 	}
 
 
@@ -396,7 +437,12 @@ void eventLoop(void){
 			/*for(unsigned int currentContainer = 0; currentContainer < containerAmount; ++currentContainer){
 				fprintf(stdout, "%lu -> %lu\n", container[currentContainer].window, container[currentContainer].subwindow);
 			}
-			fprintf(stdout, "lastCreated: %lu\nallocatedContainerAmount: %u\n", lastCreatedWindow, allocatedContainerAmount);*/
+			fprintf(stdout, "lastCreated: %lu\nallocatedContainerAmount: %u\n", lastCreatedWindow, allocatedContainerAmount);
+			for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){
+				fprintf(stdout, "\n(%u, %u) -> (%u, %u)\n", container[currentContainer].gridX, container[currentContainer].gridY, container[currentContainer].gridX + container[currentContainer].gridWidth, container[currentContainer].gridY);
+				fprintf(stdout, "   Λ         |\n   |         V\n");
+				fprintf(stdout, "(%u, %u) <- (%u, %u)\n\n", container[currentContainer].gridX, container[currentContainer].gridY + container[currentContainer].gridHeight, container[currentContainer].gridX + container[currentContainer].gridWidth, container[currentContainer].gridY + container[currentContainer].gridHeight);
+			}*/
 			if(event.type == KeyPress){
 				KEYPRESS
 			}else if(event.type == ButtonPress){
@@ -444,7 +490,7 @@ void eventLoop(void){
 					}
 				// }
 			}else if(event.type == EnterNotify){
-				for(unsigned int currentContainer = 0; currentContainer < containerAmount; ++currentContainer){
+				for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){
 					if(event.xcrossing.window == container[currentContainer].window){
 						if(container[currentContainer].subwindow){
 							XMapRaised(display, event.xcrossing.window);
@@ -467,16 +513,13 @@ void eventLoop(void){
 				for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){
 					if(event.xunmap.window == container[currentContainer].subwindow){
 						XUnmapWindow(display, container[currentContainer].window);
-
-
-
 						XSetInputFocus(display, XDefaultRootWindow(display), RevertToPointerRoot, CurrentTime);
-
-
-
 						clearWindowProperties(container[currentContainer].window);
 						container[currentContainer].subwindow = None;
-						container[currentContainer].inGrid = gridSlotAmount;
+						if(container[currentContainer].inGrid){
+							XSetWindowBorderWidth(display, event.xany.window, border);
+							container[currentContainer].inGrid = 0;
+						}
 						--allocatedContainerAmount;
 						unsigned int currentContainer1;
 						Window tempWindow;
@@ -526,7 +569,7 @@ void eventLoop(void){
 
 
 
-									XMoveResizeWindow(display, container[allocatedContainerAmount].window, windowAttributes.x + cascade.x, windowAttributes.y + cascade.y, width, height);
+									XMoveResizeWindow(display, container[allocatedContainerAmount].window, windowAttributes.x + cascade.offsetX, windowAttributes.y + cascade.offsetY, width, height);
 
 
 
@@ -589,7 +632,14 @@ void eventLoop(void){
 
 
 			}else if(event.type == ConfigureNotify){
-				//
+				/*for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){
+					if(container[currentContainer].subwindow == event.xconfigure.window){
+						XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
+						XMoveWindow(display, container[currentContainer].window, event.xconfigure.x - innerBorder - border, event.xconfigure.y - innerBorder - border);
+						XMoveWindow(display, event.xconfigure.window, innerBorder, innerBorder);
+						break;
+					}
+				}*/
 
 
 
@@ -609,7 +659,7 @@ void eventLoop(void){
 
 			}
 		}
-		for(unsigned int currentContainer = 0; currentContainer < containerAmount; ++currentContainer){
+		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){
 			XUnmapWindow(display, container[currentContainer].window);
 			XDestroyWindow(display, container[currentContainer].window);
 		}
@@ -725,6 +775,41 @@ static void createGrid(const unsigned int monitorAmount, const unsigned int grid
 				}
 			}
 			XRRFreeMonitors(monitorInfo);
+		}
+	}
+	return;
+}
+static void getGridSlotData(const XRRMonitorInfo monitorInfo, const unsigned int gridX, const unsigned int gridY, const unsigned int gridWidth, const unsigned int gridHeight, int *const x, int *const y, unsigned int *const width, unsigned int *const height){
+	const unsigned int normalWidth = monitorInfo.width / gridWidth;
+	const unsigned int normalHeight = monitorInfo.height / gridHeight;
+	const unsigned int abnormalWidth = monitorInfo.width - (gridWidth - 1) * normalWidth;
+	const unsigned int abnormalHeight = monitorInfo.height - (gridHeight - 1) * normalHeight;
+	if(x){
+		if(gridX > gridWidth / 2){
+			*x = (gridX - 1) * normalWidth + abnormalWidth;
+		}else{
+			*x = gridX * normalWidth;
+		}
+	}
+	if(y){
+		if(gridY > gridHeight / 2){
+			*y = (gridY - 1) * normalHeight + abnormalHeight;
+		}else{
+			*y = gridY * normalHeight;
+		}
+	}
+	if(width){
+		if(gridX == gridWidth / 2){
+			*width = abnormalWidth;
+		}else{
+			*width = normalWidth;
+		}
+	}
+	if(height){
+		if(gridY == gridHeight / 2){
+			*height = abnormalHeight;
+		}else{
+			*height = normalHeight;
 		}
 	}
 	return;
