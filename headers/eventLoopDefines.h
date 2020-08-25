@@ -28,132 +28,86 @@ SOFTWARE. */
 #define REALLOCATE_SUBWINDOWS \
 if(allocatedContainerAmount){ \
 	FILE *file = fopen("/home/steven/.microwm/.subwindows", "r"); \
-	unsigned int currentContainer; \
 	if(file){ \
-		char line[DefaultCharactersCount + 1]; \
-		int x[allocatedContainerAmount]; \
-		int y[allocatedContainerAmount]; \
-		unsigned int width[allocatedContainerAmount]; \
-		unsigned int height[allocatedContainerAmount]; \
-		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
-			unsigned int element = 0; \
-			for(;;){ \
-				line[element] = fgetc(file); \
-				if(line[element] == '\n' || feof(file)){ \
-					line[element] = '\0'; \
-					break; \
-				}else if(element < DefaultCharactersCount){ \
-					++element; \
-				} \
-			} \
-			if(feof(file)){ \
-				break; \
-			} \
-			element = 0; \
-			while(line[element] != ' '){ \
-				if(line[element] >= '0' && line[element] <= '9'){ \
-					container[currentContainer].subwindow *= 10; \
-					container[currentContainer].subwindow += line[element]; \
-					container[currentContainer].subwindow -= 48; \
-					++element; \
-				}else{ \
-					container[currentContainer].subwindow = None; \
-					while(line[element] != ' '){ \
-						++element; \
-					} \
-					break; \
-				} \
-			} \
-			++element; \
-			{ \
-				bool negative = 0; \
-				x[currentContainer] = 0; \
-				while(line[element] != ' '){ \
-					if(line[element] >= '0' && line[element] <= '9'){ \
-						x[currentContainer] *= 10; \
-						x[currentContainer] += line[element]; \
-						x[currentContainer] -= 48; \
-						++element; \
-					}else if(line[element] == '-'){ \
-						negative = 1; \
-						++element; \
+		{ \
+			char c; \
+			Window subwindow; \
+			bool negative; \
+			int x; \
+			int y; \
+			unsigned int width; \
+			unsigned int height; \
+			for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+				subwindow = 0; \
+				for(;;){ \
+					if((c = fgetc(file)) != ' '){ \
+						subwindow = subwindow * 10 + c - 48; \
 					}else{ \
-						x[currentContainer] = 0; \
-						while(line[element] != ' '){ \
-							++element; \
-						} \
 						break; \
 					} \
 				} \
-				if(x[currentContainer] && negative){ \
-					x[currentContainer] = -x[currentContainer]; \
-				} \
-				++element; \
-				y[currentContainer] = 0; \
 				negative = 0; \
-				while(line[element] != ' '){ \
-					if(line[element] >= '0' && line[element] <= '9'){ \
-						y[currentContainer] *= 10; \
-						y[currentContainer] += line[element]; \
-						y[currentContainer] -= 48; \
-						++element; \
-					}else if(line[element] == '-'){ \
-						negative = 1; \
-						++element; \
-					}else{ \
-						y[currentContainer] = 0; \
-						while(line[element] != ' '){ \
-							++element; \
+				x = 0; \
+				for(;;){ \
+					if((c = fgetc(file)) != ' '){ \
+						if(c == '-'){ \
+							negative = 1; \
+						}else{ \
+							x = x * 10 + c - 48; \
 						} \
+					}else{ \
 						break; \
 					} \
 				} \
-				if(y[currentContainer] && negative){ \
-					y[currentContainer] = -y[currentContainer]; \
+				if(negative){ \
+					x = -x; \
 				} \
-			} \
-			++element; \
-			width[currentContainer] = 0; \
-			while(line[element] != ' '){ \
-				if(line[element] >= '0' && line[element] <= '9'){ \
-					width[currentContainer] *= 10; \
-					width[currentContainer] += line[element]; \
-					width[currentContainer] -= 48; \
-					++element; \
-				}else{ \
-					width[currentContainer] = 1; \
-					while(line[element] != ' '){ \
-						++element; \
+				negative = 0; \
+				y = 0; \
+				for(;;){ \
+					if((c = fgetc(file)) != ' '){ \
+						if(c == '-'){ \
+							negative = 1; \
+						}else{ \
+							y = y * 10 + c - 48; \
+						} \
+					}else{ \
+						break; \
 					} \
-					break; \
 				} \
-			} \
-			++element; \
-			height[currentContainer] = 0; \
-			while(line[element]){ \
-				if(line[element] >= '0' && line[element] <= '9'){ \
-					height[currentContainer] *= 10; \
-					height[currentContainer] += line[element]; \
-					height[currentContainer] -= 48; \
-					++element; \
-				}else{ \
-					height[currentContainer] = 1; \
-					while(line[element] != ' '){ \
-						++element; \
+				if(negative){ \
+					y = -y; \
+				} \
+				width = 0; \
+				for(;;){ \
+					if((c = fgetc(file)) != ' '){ \
+						width = width * 10 + c - 48; \
+					}else{ \
+						break; \
 					} \
-					break; \
 				} \
+				height = 0; \
+				for(;;){ \
+					if((c = fgetc(file)) != '\n'){ \
+						height = height * 10 + c - 48; \
+					}else{ \
+						break; \
+					} \
+				} \
+				container[currentContainer].subwindow = subwindow; \
+				XSelectInput(display, subwindow, ButtonReleaseMask | EnterWindowMask | ButtonMotionMask | StructureNotifyMask); \
+				XReparentWindow(display, subwindow, container[currentContainer].window, innerBorder, innerBorder); \
+				XMoveResizeWindow(display, container[currentContainer].window, x, y, width, height); \
+				XResizeWindow(display, subwindow, width - innerBorders, height - innerBorders); \
 			} \
-		} \
-		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
-			XReparentWindow(display, container[currentContainer].subwindow, container[currentContainer].window, innerBorder, innerBorder); \
-			XMapWindow(display, container[currentContainer].window); \
-			XMapWindow(display, container[currentContainer].subwindow); \
-			XMoveResizeWindow(display, container[currentContainer].window, x[currentContainer], y[currentContainer], width[currentContainer], height[currentContainer]); \
-			XResizeWindow(display, container[currentContainer].subwindow, width[currentContainer] - innerBorders, height[currentContainer] - innerBorders); \
+			for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+				XMapWindow(display, container[currentContainer].window); \
+				XMapWindow(display, container[currentContainer].subwindow); \
+			} \
 		} \
 		fclose(file); \
 	} \
+	lastCreatedWindow = container[allocatedContainerAmount - 1].window; \
 }
 #define KEYPRESS \
 for(unsigned int currentShortcut = 0; currentShortcut < shortcutAmount; ++currentShortcut){ \
@@ -164,11 +118,11 @@ for(unsigned int currentShortcut = 0; currentShortcut < shortcutAmount; ++curren
 				if(c == SystemCommand){ \
 					goto system; \
 				}else if(c == FloatingModeCommand){ \
-					managementMode = FloatingManagementMode; \
+					goto changeToFloatingMode; \
 				}else if(c == GridModeCommand){ \
-					managementMode = GridManagementMode; \
+					goto changeToGridMode; \
 				}else if(c == TilingModeCommand){ \
-					managementMode = TilingManagementMode; \
+					goto changeToTilingMode; \
 				}else if(c == ShowGridCommand){ \
 					goto showGrid; \
 				}else if(c == EnlargeGridCommand){ \
@@ -281,11 +235,11 @@ for(unsigned int currentButton = 0; currentButton < buttonAmount; ++currentButto
 				if(c == SystemCommand){ \
 					SYSTEM_KEYPRESS \
 				}else if(c == FloatingModeCommand){ \
-					managementMode = FloatingManagementMode; \
+					FLOATINGMODE_KEYPRESS \
 				}else if(c == GridModeCommand){ \
-					managementMode = GridManagementMode; \
+					GRIDMODE_KEYPRESS \
 				}else if(c == TilingModeCommand){ \
-					managementMode = TilingManagementMode; \
+					TILINGMODE_KEYPRESS \
 				}else if(c == ShowGridCommand){ \
 					SHOWGRID_KEYPRESS \
 				}else if(c == EnlargeGridCommand){ \
@@ -447,6 +401,146 @@ system:{ \
 
 
 
+#define FLOATINGMODE_KEYPRESS \
+changeToFloatingMode:{ \
+	if(managementMode != FloatingManagementMode){ \
+		if(allocatedContainerAmount){ \
+			Window window; \
+			for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+				window = container[currentContainer].window; \
+				XSelectInput(display, window, EnterWindowMask); \
+				XSelectInput(display, container[currentContainer].subwindow, EnterWindowMask | StructureNotifyMask); \
+				XSetWindowBorderWidth(display, window, border); \
+				XSetWindowBackground(display, window, containerBackgroundColor); \
+				XUnmapWindow(display, window); \
+				XMapWindow(display, window); \
+				container[currentContainer].inGrid = 0; \
+			} \
+			managementMode = FloatingManagementMode; \
+			if(pointerInfo & ChangeModePointerInfo){ \
+				goto recascadeOption0; \
+			}else{ \
+				goto recascadeOption1; \
+			} \
+		} \
+	} \
+}
+#define GRIDMODE_KEYPRESS \
+changeToGridMode:{ \
+	if(managementMode != GridManagementMode){ \
+		XRRMonitorInfo monitorInfo; \
+		Window window; \
+		unsigned int gridX; \
+		unsigned int gridY; \
+		int x; \
+		int y; \
+		unsigned int width; \
+		unsigned int height; \
+		if(pointerInfo & ChangeModePointerInfo){ \
+			monitorInfo = getPointerMonitorInfo(); \
+		} \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+			window = container[currentContainer].window; \
+			if(!(pointerInfo & ChangeModePointerInfo)){ \
+				monitorInfo = getWindowMonitorInfo(window); \
+			} \
+			getGridSlotData(monitorInfo, gridX, gridY, gridWidth, gridHeight, &x, &y, &width, &height); \
+			XSelectInput(display, window, EnterWindowMask); \
+			XSelectInput(display, container[currentContainer].subwindow, EnterWindowMask | StructureNotifyMask); \
+			XSetWindowBorderWidth(display, window, 0); \
+			XSetWindowBackground(display, window, inGridContainerBackgroundColor); \
+			XUnmapWindow(display, window); \
+			XMapWindow(display, window); \
+			XMoveResizeWindow(display, window, monitorInfo.x + x, monitorInfo.y + y, width, height); \
+			XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
+			container[currentContainer].inGrid = 1; \
+			container[currentContainer].gridX = gridX; \
+			container[currentContainer].gridY = gridY; \
+			container[currentContainer].gridWidth = 1; \
+			container[currentContainer].gridHeight = 1; \
+			if(++gridX == gridWidth){ \
+				gridX = 0; \
+				if(++gridY == gridHeight){ \
+					gridY = 0; \
+				} \
+			} \
+		} \
+		managementMode = GridManagementMode; \
+	} \
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#define TILINGMODE_KEYPRESS \
+changeToTilingMode:{ \
+	if(managementMode != TilingManagementMode){ \
+		unsigned int width = 1920 / allocatedContainerAmount; \
+		unsigned int height = 1080; \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+			XSelectInput(display, container[currentContainer].window, EnterWindowMask); \
+			XSelectInput(display, container[currentContainer].subwindow, EnterWindowMask | StructureNotifyMask); \
+\
+\
+\
+			\
+\
+\
+\
+		} \
+		managementMode = TilingManagementMode; \
+	} \
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #define SHOWGRID_KEYPRESS \
 showGrid:{ \
 	if(gridMapped){ \
@@ -510,15 +604,32 @@ shrinkGrid:{ \
 			} \
 			if(managementMode != TilingManagementMode){ \
 				XRRMonitorInfo monitorInfo; \
-				int x; \
-				int y; \
+				int x0; \
+				int y0; \
+				int x1; \
+				int y1; \
 				unsigned int width; \
 				unsigned int height; \
-				for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+				for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 					if(container[currentContainer].inGrid){ \
 						monitorInfo = getWindowMonitorInfo(container[currentContainer].window); \
-						getGridSlotData(monitorInfo, container[currentContainer].gridX, container[currentContainer].gridY, gridWidth, gridHeight, &x, &y, &width, &height); \
-						XMoveResizeWindow(display, container[currentContainer].window, monitorInfo.x + x, monitorInfo.y + y, width, height); \
+						if(container[currentContainer].gridX + container[currentContainer].gridWidth - 1 == gridWidth){ \
+							if(!--container[currentContainer].gridWidth){ \
+								--container[currentContainer].gridX; \
+								++container[currentContainer].gridWidth; \
+							} \
+						} \
+						if(container[currentContainer].gridY + container[currentContainer].gridHeight - 1 == gridHeight){ \
+							if(!--container[currentContainer].gridHeight){ \
+								--container[currentContainer].gridY; \
+								++container[currentContainer].gridHeight; \
+							} \
+						} \
+						getGridSlotData(monitorInfo, container[currentContainer].gridX, container[currentContainer].gridY, gridWidth, gridHeight, &x0, &y0, NULL, NULL); \
+						getGridSlotData(monitorInfo, container[currentContainer].gridX + container[currentContainer].gridWidth - 1, container[currentContainer].gridY + container[currentContainer].gridHeight - 1, gridWidth, gridHeight, &x1, &y1, &width, &height); \
+						width = x1 - x0 + width; \
+						height = y1 - y0 + height; \
+						XMoveResizeWindow(display, container[currentContainer].window, monitorInfo.x + x0, monitorInfo.y + y0, width, height); \
 						XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
 					} \
 				} \
@@ -530,56 +641,59 @@ shrinkGrid:{ \
 recascade:{ \
 	if(managementMode == FloatingManagementMode){ \
 		if(allocatedContainerAmount){ \
-			XRRMonitorInfo monitorInfo; \
-			unsigned int currentContainer; \
 			if(pointerInfo & RecascadePointerInfo){ \
-				monitorInfo = getPointerMonitorInfo(); \
-				const unsigned int width = monitorInfo.width / gridWidth; \
-				const unsigned int height = monitorInfo.height / gridHeight; \
-				int x = monitorInfo.x + (monitorInfo.width - width) / 2; \
-				int y = monitorInfo.y + (monitorInfo.height - height) / 2; \
-				if(cascade.overrideGridWindows){ \
-					for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
-						XMoveResizeWindow(display, container[currentContainer].window, x, y, width, height); \
-						XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
-						x += cascade.offsetX; \
-						y += cascade.offsetY; \
+				recascadeOption0:{ \
+					const XRRMonitorInfo monitorInfo = getPointerMonitorInfo(); \
+					unsigned int width; \
+					unsigned int height; \
+					if(option & FloatingFollowGrid){ \
+						width = monitorInfo.width / gridWidth; \
+						height = monitorInfo.height / gridHeight; \
+					}else{ \
+						width = monitorInfo.width / 2; \
+						height = monitorInfo.height / 2; \
 					} \
-				}else{ \
-					for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
-						if(container[currentContainer].inGrid){ \
+					int x = monitorInfo.x + (monitorInfo.width - width) / 2; \
+					int y = monitorInfo.y + (monitorInfo.height - height) / 2; \
+					if(cascade.overrideGridWindows){ \
+						for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 							XMoveResizeWindow(display, container[currentContainer].window, x, y, width, height); \
 							XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
 							x += cascade.offsetX; \
 							y += cascade.offsetY; \
 						} \
+					}else{ \
+						for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+							if(container[currentContainer].inGrid){ \
+								XMoveResizeWindow(display, container[currentContainer].window, x, y, width, height); \
+								XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
+								x += cascade.offsetX; \
+								y += cascade.offsetY; \
+							} \
+						} \
 					} \
 				} \
 			}else{ \
-				unsigned int ma; \
-				XRRMonitorInfo *const monitors = XRRGetMonitors(display, XDefaultRootWindow(display), True, (int *)&ma); \
-				if(monitors){ \
-					if(ma == monitorAmount){ \
-						XRRMonitorInfo mi; \
-						for(unsigned int currentMonitor = 0; currentMonitor < monitorAmount; ++currentMonitor){ \
-							mi = monitors[currentMonitor]; \
-							width = mi.width / gridWidth; \
-							height = mi.height / gridHeight; \
-							x = mi.x + (mi.width - width) / 2; \
-							y = mi.y + (mi.height - height) / 2; \
-							if(cascade.overrideGridWindows){ \
-								for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
-									monitorInfo = getWindowMonitorInfo(container[currentContainer].window); \
-									if(monitorInfo.x == mi.x && monitorInfo.y == mi.y && monitorInfo.width == mi.width && monitorInfo.height == mi.height){ \
-										XMoveResizeWindow(display, container[currentContainer].window, x, y, width, height); \
-										XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
-										x += cascade.offsetX; \
-										y += cascade.offsetY; \
-									} \
+				recascadeOption1:{ \
+					unsigned int ma; \
+					XRRMonitorInfo *const monitors = XRRGetMonitors(display, XDefaultRootWindow(display), True, (int *)&ma); \
+					if(monitors){ \
+						if(ma == monitorAmount){ \
+							XRRMonitorInfo monitorInfo; \
+							XRRMonitorInfo mi; \
+							for(unsigned int currentMonitor = 0; currentMonitor < monitorAmount; ++currentMonitor){ \
+								mi = monitors[currentMonitor]; \
+								if(option & FloatingFollowGrid){ \
+									width = mi.width / gridWidth; \
+									height = mi.height / gridHeight; \
+								}else{ \
+									width = mi.width / 2; \
+									height = mi.height / 2; \
 								} \
-							}else{ \
-								for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
-									if(container[currentContainer].inGrid){ \
+								x = mi.x + (mi.width - width) / 2; \
+								y = mi.y + (mi.height - height) / 2; \
+								if(cascade.overrideGridWindows){ \
+									for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 										monitorInfo = getWindowMonitorInfo(container[currentContainer].window); \
 										if(monitorInfo.x == mi.x && monitorInfo.y == mi.y && monitorInfo.width == mi.width && monitorInfo.height == mi.height){ \
 											XMoveResizeWindow(display, container[currentContainer].window, x, y, width, height); \
@@ -588,11 +702,23 @@ recascade:{ \
 											y += cascade.offsetY; \
 										} \
 									} \
+								}else{ \
+									for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+										if(container[currentContainer].inGrid){ \
+											monitorInfo = getWindowMonitorInfo(container[currentContainer].window); \
+											if(monitorInfo.x == mi.x && monitorInfo.y == mi.y && monitorInfo.width == mi.width && monitorInfo.height == mi.height){ \
+												XMoveResizeWindow(display, container[currentContainer].window, x, y, width, height); \
+												XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
+												x += cascade.offsetX; \
+												y += cascade.offsetY; \
+											} \
+										} \
+									} \
 								} \
 							} \
 						} \
+						XRRFreeMonitors(monitors); \
 					} \
-					XRRFreeMonitors(monitors); \
 				} \
 			} \
 		} \
@@ -601,7 +727,7 @@ recascade:{ \
 #define MOVE_KEYPRESS \
 move:{ \
 	if(managementMode == FloatingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(!container[currentContainer].inGrid){ \
 					if(event.xbutton.x > (int)innerBorder && event.xbutton.y > (int)innerBorder){ \
@@ -630,7 +756,7 @@ move:{ \
 /*
 		setResize:{ \
 			motionContainer.window = event.xbutton.window; \
-			for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+			for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 				if(container[currentContainer].window == motionContainer.window){ \
 					motionContainer.subwindow = container[currentContainer].subwindow; \
 					break; \
@@ -687,7 +813,7 @@ move:{ \
 #define MOVETOP_KEYPRESS \
 moveTop:{ \
 	if(managementMode == FloatingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(!container[currentContainer].inGrid){ \
 					unsigned int width; \
@@ -700,7 +826,11 @@ moveTop:{ \
 							monitorInfo = getWindowMonitorInfo(event.xany.window); \
 						} \
 						width = monitorInfo.width; \
-						height = monitorInfo.height / gridHeight; \
+						if(option & FloatingFollowGrid){ \
+							height = monitorInfo.height / gridHeight; \
+						}else{ \
+							height = monitorInfo.height / 2; \
+						} \
 						XMoveResizeWindow(display, event.xany.window, monitorInfo.x - border, monitorInfo.y - border, width, height); \
 					} \
 					XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
@@ -713,7 +843,7 @@ moveTop:{ \
 #define MOVEBOTTOM_KEYPRESS \
 moveBottom:{ \
 	if(managementMode == FloatingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(!container[currentContainer].inGrid){ \
 					unsigned int width; \
@@ -726,7 +856,11 @@ moveBottom:{ \
 							monitorInfo = getWindowMonitorInfo(event.xany.window); \
 						} \
 						width = monitorInfo.width; \
-						height = monitorInfo.height / gridHeight; \
+						if(option & FloatingFollowGrid){ \
+							height = monitorInfo.height / gridHeight; \
+						}else{ \
+							height = monitorInfo.height / 2; \
+						} \
 						XMoveResizeWindow(display, event.xany.window, monitorInfo.x - border, monitorInfo.y + monitorInfo.height - height - border, width, height); \
 					} \
 					XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
@@ -739,7 +873,7 @@ moveBottom:{ \
 #define MOVELEFT_KEYPRESS \
 moveLeft:{ \
 	if(managementMode == FloatingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(!container[currentContainer].inGrid){ \
 					unsigned int width; \
@@ -751,7 +885,11 @@ moveLeft:{ \
 						}else{ \
 							monitorInfo = getWindowMonitorInfo(event.xany.window); \
 						} \
-						width = monitorInfo.width / gridWidth; \
+						if(option & FloatingFollowGrid){ \
+							width = monitorInfo.width / gridWidth; \
+						}else{ \
+							width = monitorInfo.width / 2; \
+						} \
 						height = monitorInfo.height; \
 						XMoveResizeWindow(display, event.xany.window, monitorInfo.x - border, monitorInfo.y - border, width, height); \
 					} \
@@ -765,7 +903,7 @@ moveLeft:{ \
 #define MOVERIGHT_KEYPRESS \
 moveRight:{ \
 	if(managementMode == FloatingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(!container[currentContainer].inGrid){ \
 					unsigned int width; \
@@ -777,7 +915,11 @@ moveRight:{ \
 						}else{ \
 							monitorInfo = getWindowMonitorInfo(event.xany.window); \
 						} \
-						width = monitorInfo.width / gridWidth; \
+						if(option & FloatingFollowGrid){ \
+							width = monitorInfo.width / gridWidth; \
+						}else{ \
+							width = monitorInfo.width / 2; \
+						} \
 						height = monitorInfo.height; \
 						XMoveResizeWindow(display, event.xany.window, monitorInfo.x + monitorInfo.width - width - border, monitorInfo.y - border, width, height); \
 					} \
@@ -791,7 +933,7 @@ moveRight:{ \
 #define MOVECENTER_KEYPRESS \
 moveCenter:{ \
 	if(managementMode == FloatingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(!container[currentContainer].inGrid){ \
 					unsigned int width; \
@@ -803,8 +945,13 @@ moveCenter:{ \
 						}else{ \
 							monitorInfo = getWindowMonitorInfo(event.xany.window); \
 						} \
-						width = monitorInfo.width / gridWidth; \
-						height = monitorInfo.height / gridHeight; \
+						if(option & FloatingFollowGrid){ \
+							width = monitorInfo.width / gridWidth; \
+							height = monitorInfo.height / gridHeight; \
+						}else{ \
+							width = monitorInfo.width / 2; \
+							height = monitorInfo.height / 2; \
+						} \
 						XMoveResizeWindow(display, event.xany.window, monitorInfo.x + (monitorInfo.width - width) / 2 - border, monitorInfo.y + (monitorInfo.height - height) / 2 - border, width, height); \
 					} \
 					XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
@@ -817,7 +964,7 @@ moveCenter:{ \
 #define MOVETOPLEFT_KEYPRESS \
 moveTopLeft:{ \
 	if(managementMode == FloatingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(!container[currentContainer].inGrid){ \
 					unsigned int width; \
@@ -829,8 +976,13 @@ moveTopLeft:{ \
 						}else{ \
 							monitorInfo = getWindowMonitorInfo(event.xany.window); \
 						} \
-						width = monitorInfo.width / gridWidth; \
-						height = monitorInfo.height / gridHeight; \
+						if(option & FloatingFollowGrid){ \
+							width = monitorInfo.width / gridWidth; \
+							height = monitorInfo.height / gridHeight; \
+						}else{ \
+							width = monitorInfo.width / 2; \
+							height = monitorInfo.height / 2; \
+						} \
 						XMoveResizeWindow(display, event.xany.window, monitorInfo.x - border, monitorInfo.y - border, width, height); \
 					} \
 					XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
@@ -843,7 +995,7 @@ moveTopLeft:{ \
 #define MOVETOPRIGHT_KEYPRESS \
 moveTopRight:{ \
 	if(managementMode == FloatingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(!container[currentContainer].inGrid){ \
 					unsigned int width; \
@@ -855,8 +1007,13 @@ moveTopRight:{ \
 						}else{ \
 							monitorInfo = getWindowMonitorInfo(event.xany.window); \
 						} \
-						width = monitorInfo.width / gridWidth; \
-						height = monitorInfo.height / gridHeight; \
+						if(option & FloatingFollowGrid){ \
+							width = monitorInfo.width / gridWidth; \
+							height = monitorInfo.height / gridHeight; \
+						}else{ \
+							width = monitorInfo.width / 2; \
+							height = monitorInfo.height / 2; \
+						} \
 						XMoveResizeWindow(display, event.xany.window, monitorInfo.x + monitorInfo.width - width - border, monitorInfo.y - border, width, height); \
 					} \
 					XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
@@ -869,7 +1026,7 @@ moveTopRight:{ \
 #define MOVEBOTTOMLEFT_KEYPRESS \
 moveBottomLeft:{ \
 	if(managementMode == FloatingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(!container[currentContainer].inGrid){ \
 					unsigned int width; \
@@ -881,8 +1038,13 @@ moveBottomLeft:{ \
 						}else{ \
 							monitorInfo = getWindowMonitorInfo(event.xany.window); \
 						} \
-						width = monitorInfo.width / gridWidth; \
-						height = monitorInfo.height / gridHeight; \
+						if(option & FloatingFollowGrid){ \
+							width = monitorInfo.width / gridWidth; \
+							height = monitorInfo.height / gridHeight; \
+						}else{ \
+							width = monitorInfo.width / 2; \
+							height = monitorInfo.height / 2; \
+						} \
 						XMoveResizeWindow(display, event.xany.window, monitorInfo.x - border, monitorInfo.y + monitorInfo.height - height - border, width, height); \
 					} \
 					XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
@@ -895,7 +1057,7 @@ moveBottomLeft:{ \
 #define MOVEBOTTOMRIGHT_KEYPRESS \
 moveBottomRight:{ \
 	if(managementMode == FloatingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(!container[currentContainer].inGrid){ \
 					unsigned int width; \
@@ -907,8 +1069,13 @@ moveBottomRight:{ \
 						}else{ \
 							monitorInfo = getWindowMonitorInfo(event.xany.window); \
 						} \
-						width = monitorInfo.width / gridWidth; \
-						height = monitorInfo.height / gridHeight; \
+						if(option & FloatingFollowGrid){ \
+							width = monitorInfo.width / gridWidth; \
+							height = monitorInfo.height / gridHeight; \
+						}else{ \
+							width = monitorInfo.width / 2; \
+							height = monitorInfo.height / 2; \
+						} \
 						XMoveResizeWindow(display, event.xany.window, monitorInfo.x + monitorInfo.width - width - border, monitorInfo.y + monitorInfo.height - height - border, width, height); \
 					} \
 					XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
@@ -927,33 +1094,46 @@ if(managementMode == FloatingManagementMode){ \
 		next = 0; \
 	} \
 	unsigned int ma; \
-	XRRMonitorInfo *const monitors = XRRGetMonitors(display, XDefaultRootWindow(display), True, (int *)&ma); \
-	if(monitors){ \
+	XRRMonitorInfo *const mi = XRRGetMonitors(display, XDefaultRootWindow(display), True, (int *)&ma); \
+	if(mi){ \
 		if(ma == monitorAmount){ \
-			for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+			for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 				if(container[currentContainer].window == event.xany.window){ \
 					if(!container[currentContainer].inGrid){ \
-						XRRMonitorInfo monitorInfo; \
-						if(pointerInfo & MoveMonitorPointerInfo){ \
-							monitorInfo = getPointerMonitorInfo(); \
-						}else{ \
-							monitorInfo = getWindowMonitorInfo(event.xany.window); \
-						} \
+						XRRMonitorInfo monitorInfo = getWindowMonitorInfo(event.xany.window); \
 						for(unsigned int currentMonitor = 0; currentMonitor < monitorAmount; ++currentMonitor){ \
-							if(monitors[currentMonitor].x == monitorInfo.x && monitors[currentMonitor].y == monitorInfo.y && monitors[currentMonitor].width == monitorInfo.width && monitors[currentMonitor].height == monitorInfo.height){ \
+							if(mi[currentMonitor].x == monitorInfo.x && mi[currentMonitor].y == monitorInfo.y && mi[currentMonitor].width == monitorInfo.width && mi[currentMonitor].height == monitorInfo.height){ \
 								if(next){ \
 									if(++currentMonitor < monitorAmount){ \
-										monitorInfo = monitors[currentMonitor]; \
+										monitorInfo = mi[currentMonitor]; \
+										unsigned int width; \
+										unsigned int height; \
+										if(option & FloatingFollowGrid){ \
+											width = monitorInfo.width / gridWidth; \
+											height = monitorInfo.height / gridHeight; \
+										}else{ \
+											width = monitorInfo.width / 2; \
+											height = monitorInfo.height / 2; \
+										} \
+										XMoveResizeWindow(display, event.xany.window, monitorInfo.x + (monitorInfo.width - width) / 2 - border, monitorInfo.y + (monitorInfo.height - height) / 2 - border, width, height); \
+										XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
 									} \
 								}else{ \
 									if((int)--currentMonitor >= 0){ \
-										monitorInfo = monitors[currentMonitor]; \
+										monitorInfo = mi[currentMonitor]; \
+										unsigned int width; \
+										unsigned int height; \
+										if(option & FloatingFollowGrid){ \
+											width = monitorInfo.width / gridWidth; \
+											height = monitorInfo.height / gridHeight; \
+										}else{ \
+											width = monitorInfo.width / 2; \
+											height = monitorInfo.height / 2; \
+										} \
+										XMoveResizeWindow(display, event.xany.window, monitorInfo.x + (monitorInfo.width - width) / 2 - border, monitorInfo.y + (monitorInfo.height - height) / 2 - border, width, height); \
+										XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
 									} \
 								} \
-								const unsigned int width = monitorInfo.width / gridWidth; \
-								const unsigned int height = monitorInfo.height / gridHeight; \
-								XMoveResizeWindow(display, event.xany.window, monitorInfo.x + (monitorInfo.width - width) / 2 - border, monitorInfo.y + (monitorInfo.height - height) / 2 - border, width, height); \
-								XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
 								break; \
 							} \
 						} \
@@ -962,39 +1142,16 @@ if(managementMode == FloatingManagementMode){ \
 				} \
 			} \
 		} \
-		XRRFreeMonitors(monitors); \
+		XRRFreeMonitors(mi); \
 	} \
 }
 #define ADDWINDOWTOGRID_KEYPRESS \
 addWindowToGridSlot:{ \
 	if(managementMode != TilingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(!container[currentContainer].inGrid){ \
-					XSetWindowBackground(display, event.xany.window, inGridContainerBackgroundColor); \
-					XUnmapWindow(display, event.xany.window); \
-					XMapWindow(display, event.xany.window); \
-					unsigned int width; \
-					unsigned int height; \
-					{ \
-						int x; \
-						int y; \
-						XRRMonitorInfo monitorInfo; \
-						if(pointerInfo & MovePointerInfo){ \
-							monitorInfo = getPointerMonitorInfo(); \
-						}else{ \
-							monitorInfo = getWindowMonitorInfo(container[currentContainer].window); \
-						} \
-						getGridSlotData(monitorInfo, 0, 0, gridWidth, gridHeight, &x, &y, &width, &height); \
-						XSetWindowBorderWidth(display, event.xany.window, 0); \
-						XMoveResizeWindow(display, event.xany.window, monitorInfo.x + x, monitorInfo.y + y, width, height); \
-					} \
-					XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
-					container[currentContainer].inGrid = 1; \
-					container[currentContainer].gridX = 0; \
-					container[currentContainer].gridY = 0; \
-					container[currentContainer].gridWidth = 1; \
-					container[currentContainer].gridHeight = 1; \
+					goto addToGrid; \
 				} \
 				break; \
 			} \
@@ -1004,28 +1161,10 @@ addWindowToGridSlot:{ \
 #define REMOVEWINDOWFROMGRID_KEYPRESS \
 removeWindowFromGrid:{ \
 	if(managementMode != TilingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(container[currentContainer].inGrid){ \
-					XSetWindowBackground(display, event.xany.window, containerBackgroundColor); \
-					XUnmapWindow(display, event.xany.window); \
-					XMapWindow(display, event.xany.window); \
-					unsigned int width; \
-					unsigned int height; \
-					{ \
-						XRRMonitorInfo monitorInfo; \
-						if(pointerInfo & MovePointerInfo){ \
-							monitorInfo = getPointerMonitorInfo(); \
-						}else{ \
-							monitorInfo = getWindowMonitorInfo(event.xany.window); \
-						} \
-						width = monitorInfo.width / gridWidth; \
-						height = monitorInfo.height / gridHeight; \
-						XSetWindowBorderWidth(display, event.xany.window, border); \
-						XMoveResizeWindow(display, event.xany.window, monitorInfo.x + (monitorInfo.width - width) / 2 - border, monitorInfo.y + (monitorInfo.height - height) / 2 - border, width, height); \
-					} \
-					XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
-					container[currentContainer].inGrid = 0; \
+					goto removeFromGrid; \
 				} \
 				break; \
 			} \
@@ -1035,53 +1174,70 @@ removeWindowFromGrid:{ \
 #define TOGGLEWINDOWGRID_KEYPRESS \
 toggleWindowGrid:{ \
 	if(managementMode != TilingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(!container[currentContainer].inGrid){ \
-					XSetWindowBackground(display, event.xany.window, inGridContainerBackgroundColor); \
-					XUnmapWindow(display, event.xany.window); \
-					XMapWindow(display, event.xany.window); \
-					unsigned int width; \
-					unsigned int height; \
-					{ \
-						int x; \
-						int y; \
-						XRRMonitorInfo monitorInfo; \
-						if(pointerInfo & MovePointerInfo){ \
-							monitorInfo = getPointerMonitorInfo(); \
-						}else{ \
-							monitorInfo = getWindowMonitorInfo(container[currentContainer].window); \
-						} \
-						getGridSlotData(monitorInfo, 0, 0, gridWidth, gridHeight, &x, &y, &width, &height); \
+					addToGrid:{ \
+						XSelectInput(display, event.xany.window, EnterWindowMask); \
+						XSelectInput(display, container[currentContainer].subwindow, EnterWindowMask | StructureNotifyMask); \
 						XSetWindowBorderWidth(display, event.xany.window, 0); \
-						XMoveResizeWindow(display, event.xany.window, monitorInfo.x + x, monitorInfo.y + y, width, height); \
-					} \
-					XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
-					container[currentContainer].inGrid = 1; \
-					container[currentContainer].gridX = 0; \
-					container[currentContainer].gridY = 0; \
-					container[currentContainer].gridWidth = 1; \
-					container[currentContainer].gridHeight = 1; \
-				}else{ \
-					XSetWindowBackground(display, event.xany.window, containerBackgroundColor); \
-					XUnmapWindow(display, event.xany.window); \
-					XMapWindow(display, event.xany.window); \
-					unsigned int width; \
-					unsigned int height; \
-					{ \
-						XRRMonitorInfo monitorInfo; \
-						if(pointerInfo & MovePointerInfo){ \
-							monitorInfo = getPointerMonitorInfo(); \
-						}else{ \
-							monitorInfo = getWindowMonitorInfo(event.xany.window); \
+						XSetWindowBackground(display, event.xany.window, inGridContainerBackgroundColor); \
+						XUnmapWindow(display, event.xany.window); \
+						XMapWindow(display, event.xany.window); \
+						{ \
+							unsigned int width; \
+							unsigned int height; \
+							{ \
+								int x; \
+								int y; \
+								XRRMonitorInfo monitorInfo; \
+								if(pointerInfo & AddToGridPointerInfo){ \
+									monitorInfo = getPointerMonitorInfo(); \
+								}else{ \
+									monitorInfo = getWindowMonitorInfo(container[currentContainer].window); \
+								} \
+								getGridSlotData(monitorInfo, 0, 0, gridWidth, gridHeight, &x, &y, &width, &height); \
+								XMoveResizeWindow(display, event.xany.window, monitorInfo.x + x, monitorInfo.y + y, width, height); \
+							} \
+							XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
 						} \
-						width = monitorInfo.width / gridWidth; \
-						height = monitorInfo.height / gridHeight; \
-						XSetWindowBorderWidth(display, event.xany.window, border); \
-						XMoveResizeWindow(display, event.xany.window, monitorInfo.x + (monitorInfo.width - width) / 2 - border, monitorInfo.y + (monitorInfo.height - height) / 2 - border, width, height); \
+						container[currentContainer].inGrid = 1; \
+						container[currentContainer].gridX = 0; \
+						container[currentContainer].gridY = 0; \
+						container[currentContainer].gridWidth = 1; \
+						container[currentContainer].gridHeight = 1; \
 					} \
-					XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
-					container[currentContainer].inGrid = 0; \
+				}else{ \
+					removeFromGrid:{ \
+						XSelectInput(display, event.xany.window, ButtonReleaseMask | EnterWindowMask | ButtonMotionMask); \
+						XSelectInput(display, container[currentContainer].subwindow, ButtonReleaseMask | EnterWindowMask | ButtonMotionMask | StructureNotifyMask); \
+						XSetWindowBorderWidth(display, event.xany.window, border); \
+						XSetWindowBackground(display, event.xany.window, containerBackgroundColor); \
+						XUnmapWindow(display, event.xany.window); \
+						XMapWindow(display, event.xany.window); \
+						{ \
+							unsigned int width; \
+							unsigned int height; \
+							{ \
+								XRRMonitorInfo monitorInfo; \
+								if(pointerInfo & RemoveFromGridPointerInfo){ \
+									monitorInfo = getPointerMonitorInfo(); \
+								}else{ \
+									monitorInfo = getWindowMonitorInfo(event.xany.window); \
+								} \
+								if(option & FloatingFollowGrid){ \
+									width = monitorInfo.width / gridWidth; \
+									height = monitorInfo.height / gridHeight; \
+								}else{ \
+									width = monitorInfo.width / 2; \
+									height = monitorInfo.height / 2; \
+								} \
+								XMoveResizeWindow(display, event.xany.window, monitorInfo.x + (monitorInfo.width - width) / 2 - border, monitorInfo.y + (monitorInfo.height - height) / 2 - border, width, height); \
+							} \
+							XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
+						} \
+						container[currentContainer].inGrid = 0; \
+					} \
 				} \
 				break; \
 			} \
@@ -1091,7 +1247,7 @@ toggleWindowGrid:{ \
 #define MOVEFIRSTGRIDSLOT_KEYPRESS \
 moveFirstGridSlot:{ \
 	if(managementMode != TilingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(container[currentContainer].inGrid){ \
 					unsigned int width; \
@@ -1117,7 +1273,7 @@ moveFirstGridSlot:{ \
 #define MOVELASTGRIDSLOT_KEYPRESS \
 moveLastGridSlot:{ \
 	if(managementMode != TilingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(container[currentContainer].inGrid){ \
 					unsigned int width; \
@@ -1143,7 +1299,7 @@ moveLastGridSlot:{ \
 #define MOVEABOVEGRIDSLOT_KEYPRESS \
 moveAboveGridSlot:{ \
 	if(managementMode != TilingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(container[currentContainer].inGrid){ \
 					if(container[currentContainer].gridX || container[currentContainer].gridY){ \
@@ -1151,7 +1307,7 @@ moveAboveGridSlot:{ \
 							if(container[currentContainer].gridY){ \
 								--container[currentContainer].gridY; \
 							}else{ \
-								if(option & AllowGridBoundaryBreakYOption){ \
+								if(option & GridAllowBoundaryBreakYOption){ \
 									--container[currentContainer].gridX; \
 									container[currentContainer].gridY = gridHeight - 1; \
 								}else{ \
@@ -1174,7 +1330,7 @@ moveAboveGridSlot:{ \
 #define MOVEBELOWGRIDSLOT_KEYPRESS \
 moveBelowGridSlot:{ \
 	if(managementMode != TilingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(container[currentContainer].inGrid){ \
 					if(container[currentContainer].gridX < gridWidth - 1 || container[currentContainer].gridY < gridHeight - 1){ \
@@ -1182,7 +1338,7 @@ moveBelowGridSlot:{ \
 							if(container[currentContainer].gridY < gridHeight - 1){ \
 								++container[currentContainer].gridY; \
 							}else{ \
-								if(option & AllowGridBoundaryBreakYOption){ \
+								if(option & GridAllowBoundaryBreakYOption){ \
 									++container[currentContainer].gridX; \
 									container[currentContainer].gridY = 0; \
 								}else{ \
@@ -1205,7 +1361,7 @@ moveBelowGridSlot:{ \
 #define MOVENEXTGRIDSLOT_KEYPRESS \
 moveNextGridSlot:{ \
 	if(managementMode != TilingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(container[currentContainer].inGrid){ \
 					if(container[currentContainer].gridX < gridWidth - 1 || container[currentContainer].gridY < gridHeight - 1){ \
@@ -1213,7 +1369,7 @@ moveNextGridSlot:{ \
 							if(container[currentContainer].gridX < gridWidth - 1){ \
 								++container[currentContainer].gridX; \
 							}else{ \
-								if(option & AllowGridBoundaryBreakXOption){ \
+								if(option & GridAllowBoundaryBreakXOption){ \
 									container[currentContainer].gridX = 0; \
 									++container[currentContainer].gridY; \
 								}else{ \
@@ -1236,7 +1392,7 @@ moveNextGridSlot:{ \
 #define MOVEPREVIOUSGRIDSLOT_KEYPRESS \
 movePreviousGridSlot:{ \
 	if(managementMode != TilingManagementMode){ \
-		for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 			if(container[currentContainer].window == event.xany.window){ \
 				if(container[currentContainer].inGrid){ \
 					if(container[currentContainer].gridX || container[currentContainer].gridY){ \
@@ -1244,7 +1400,7 @@ movePreviousGridSlot:{ \
 							if(container[currentContainer].gridX){ \
 								--container[currentContainer].gridX; \
 							}else{ \
-								if(option & AllowGridBoundaryBreakXOption){ \
+								if(option & GridAllowBoundaryBreakXOption){ \
 									container[currentContainer].gridX = gridWidth - 1; \
 									--container[currentContainer].gridY; \
 								}else{ \
@@ -1266,7 +1422,7 @@ movePreviousGridSlot:{ \
 }
 #define EXTENDWINDOWUP_KEYPRESS \
 extendWindowUp:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
 			int y; \
@@ -1276,7 +1432,11 @@ extendWindowUp:{ \
 					break; \
 				} \
 				++container[currentContainer].gridHeight; \
-				getGridSlotData(getWindowMonitorInfo(container[currentContainer].window), container[currentContainer].gridX, --container[currentContainer].gridY, gridWidth, gridHeight, NULL, &y, NULL, &height); \
+				{ \
+					const XRRMonitorInfo monitorInfo = getWindowMonitorInfo(container[currentContainer].window); \
+					getGridSlotData(monitorInfo, container[currentContainer].gridX, --container[currentContainer].gridY, gridWidth, gridHeight, NULL, &y, NULL, &height); \
+					y += monitorInfo.y; \
+				} \
 				height += windowAttributes.height; \
 			}else{ \
 				y = windowAttributes.y - extendHeight; \
@@ -1290,7 +1450,7 @@ extendWindowUp:{ \
 }
 #define EXTENDWINDOWDOWN_KEYPRESS \
 extendWindowDown:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
 			unsigned int height; \
@@ -1311,7 +1471,7 @@ extendWindowDown:{ \
 }
 #define EXTENDWINDOWLEFT_KEYPRESS \
 extendWindowLeft:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
 			int x; \
@@ -1321,8 +1481,12 @@ extendWindowLeft:{ \
 					break; \
 				} \
 				++container[currentContainer].gridWidth; \
-				getGridSlotData(getWindowMonitorInfo(container[currentContainer].window), --container[currentContainer].gridX, container[currentContainer].gridY, gridWidth, gridHeight, &x, NULL, &width, NULL); \
-				width += windowAttributes.width; \
+				{ \
+					const XRRMonitorInfo monitorInfo = getWindowMonitorInfo(container[currentContainer].window); \
+					getGridSlotData(monitorInfo, --container[currentContainer].gridX, container[currentContainer].gridY, gridWidth, gridHeight, &x, NULL, &width, NULL); \
+					x += monitorInfo.x; \
+					width += windowAttributes.width; \
+				} \
 			}else{ \
 				x = windowAttributes.x - extendWidth; \
 				width = windowAttributes.width + extendWidth; \
@@ -1335,7 +1499,7 @@ extendWindowLeft:{ \
 }
 #define EXTENDWINDOWRIGHT_KEYPRESS \
 extendWindowRight:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
 			unsigned int width; \
@@ -1356,7 +1520,7 @@ extendWindowRight:{ \
 }
 #define EXTENDWINDOWUPLEFT_KEYPRESS \
 extendWindowUpLeft:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
 			int x; \
@@ -1366,7 +1530,9 @@ extendWindowUpLeft:{ \
 			if(container[currentContainer].inGrid){ \
 				if(container[currentContainer].gridY){ \
 					++container[currentContainer].gridHeight; \
-					getGridSlotData(getWindowMonitorInfo(container[currentContainer].window), container[currentContainer].gridX, --container[currentContainer].gridY, gridWidth, gridHeight, NULL, &y, NULL, &height); \
+					const XRRMonitorInfo monitorInfo = getWindowMonitorInfo(container[currentContainer].window); \
+					getGridSlotData(monitorInfo, container[currentContainer].gridX, --container[currentContainer].gridY, gridWidth, gridHeight, NULL, &y, NULL, &height); \
+					y += monitorInfo.y; \
 					height += windowAttributes.height; \
 				}else{ \
 					y = windowAttributes.y; \
@@ -1374,7 +1540,9 @@ extendWindowUpLeft:{ \
 				} \
 				if(container[currentContainer].gridX){ \
 					++container[currentContainer].gridWidth; \
-					getGridSlotData(getWindowMonitorInfo(container[currentContainer].window), --container[currentContainer].gridX, container[currentContainer].gridY, gridWidth, gridHeight, &x, NULL, &width, NULL); \
+					const XRRMonitorInfo monitorInfo = getWindowMonitorInfo(container[currentContainer].window); \
+					getGridSlotData(monitorInfo, --container[currentContainer].gridX, container[currentContainer].gridY, gridWidth, gridHeight, &x, NULL, &width, NULL); \
+					x += monitorInfo.x; \
 					width += windowAttributes.width; \
 				}else{ \
 					x = windowAttributes.x; \
@@ -1397,7 +1565,7 @@ extendWindowUpLeft:{ \
 }
 #define EXTENDWINDOWUPRIGHT_KEYPRESS \
 extendWindowUpRight:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
 			int y; \
@@ -1406,7 +1574,9 @@ extendWindowUpRight:{ \
 			if(container[currentContainer].inGrid){ \
 				if(container[currentContainer].gridY){ \
 					++container[currentContainer].gridHeight; \
-					getGridSlotData(getWindowMonitorInfo(container[currentContainer].window), container[currentContainer].gridX, --container[currentContainer].gridY, gridWidth, gridHeight, NULL, &y, NULL, &height); \
+					const XRRMonitorInfo monitorInfo = getWindowMonitorInfo(container[currentContainer].window); \
+					getGridSlotData(monitorInfo, container[currentContainer].gridX, --container[currentContainer].gridY, gridWidth, gridHeight, NULL, &y, NULL, &height); \
+					y += monitorInfo.y; \
 					height += windowAttributes.height; \
 				}else{ \
 					y = windowAttributes.y; \
@@ -1434,7 +1604,7 @@ extendWindowUpRight:{ \
 }
 #define EXTENDWINDOWDOWNLEFT_KEYPRESS \
 extendWindowDownLeft:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
 			int x; \
@@ -1449,7 +1619,9 @@ extendWindowDownLeft:{ \
 				} \
 				if(container[currentContainer].gridX){ \
 					++container[currentContainer].gridWidth; \
-					getGridSlotData(getWindowMonitorInfo(container[currentContainer].window), --container[currentContainer].gridX, container[currentContainer].gridY, gridWidth, gridHeight, &x, NULL, &width, NULL); \
+					const XRRMonitorInfo monitorInfo = getWindowMonitorInfo(container[currentContainer].window); \
+					getGridSlotData(monitorInfo, --container[currentContainer].gridX, container[currentContainer].gridY, gridWidth, gridHeight, &x, NULL, &width, NULL); \
+					x += monitorInfo.x; \
 					width += windowAttributes.width; \
 				}else{ \
 					x = windowAttributes.x; \
@@ -1471,7 +1643,7 @@ extendWindowDownLeft:{ \
 }
 #define EXTENDWINDOWDOWNRIGHT_KEYPRESS \
 extendWindowDownRight:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
 			unsigned int width; \
@@ -1504,7 +1676,7 @@ extendWindowDownRight:{ \
 }
 #define SHRINKWINDOWUP_KEYPRESS \
 shrinkWindowUp:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
 			unsigned int height; \
@@ -1526,7 +1698,7 @@ shrinkWindowUp:{ \
 }
 #define SHRINKWINDOWDOWN_KEYPRESS \
 shrinkWindowDown:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
 			int y; \
@@ -1552,7 +1724,7 @@ shrinkWindowDown:{ \
 }
 #define SHRINKWINDOWLEFT_KEYPRESS \
 shrinkWindowLeft:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
 			unsigned int width; \
@@ -1574,7 +1746,7 @@ shrinkWindowLeft:{ \
 }
 #define SHRINKWINDOWRIGHT_KEYPRESS \
 shrinkWindowRight:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
 			int x; \
@@ -1600,7 +1772,7 @@ shrinkWindowRight:{ \
 }
 #define SHRINKWINDOWUPLEFT_KEYPRESS \
 shrinkWindowUpLeft:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
 			unsigned int width; \
@@ -1635,7 +1807,7 @@ shrinkWindowUpLeft:{ \
 }
 #define SHRINKWINDOWUPRIGHT_KEYPRESS \
 shrinkWindowUpRight:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
 			int x; \
@@ -1675,7 +1847,7 @@ shrinkWindowUpRight:{ \
 }
 #define SHRINKWINDOWDOWNLEFT_KEYPRESS \
 shrinkWindowDownLeft:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
 			int y; \
@@ -1715,7 +1887,7 @@ shrinkWindowDownLeft:{ \
 }
 #define SHRINKWINDOWDOWNRIGHT_KEYPRESS \
 shrinkWindowDownRight:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
 			int x; \
@@ -1787,11 +1959,11 @@ shrinkWindowDownRight:{ \
 
 #define FULLSCREEN_KEYPRESS \
 fullscreen:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			if(!container[currentContainer].inGrid){ \
 				XRRMonitorInfo monitorInfo; \
-				if(pointerInfo & MovePointerInfo){ \
+				if(pointerInfo & FullscreenPointerInfo){ \
 					monitorInfo = getPointerMonitorInfo(); \
 				}else{ \
 					monitorInfo = getWindowMonitorInfo(event.xany.window); \
@@ -1817,8 +1989,13 @@ fullscreen:{ \
 						}; \
 						XSendEvent(display, e.xclient.window, False, PropertyChangeMask, &e); \
 					} \
-					windowAttributes.width = monitorInfo.width / gridWidth; \
-					windowAttributes.height = monitorInfo.height / gridHeight; \
+					if(option & FloatingFollowGrid){ \
+						windowAttributes.width = monitorInfo.width / gridWidth; \
+						windowAttributes.height = monitorInfo.height / gridHeight; \
+					}else{ \
+						windowAttributes.width = monitorInfo.width / 2; \
+						windowAttributes.height = monitorInfo.height / 2; \
+					} \
 					XMoveResizeWindow(display, event.xany.window, monitorInfo.x + (monitorInfo.width - windowAttributes.width) / 2 - border, monitorInfo.y + (monitorInfo.height - windowAttributes.height) / 2 - border, windowAttributes.width, windowAttributes.height); \
 					XResizeWindow(display, container[currentContainer].subwindow, windowAttributes.width - innerBorders, windowAttributes.height - innerBorders); \
 				}else{ \
@@ -1849,21 +2026,53 @@ fullscreen:{ \
 		} \
 	} \
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #define BIGSCREEN_KEYPRESS \
 bigscreen:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			if(!container[currentContainer].inGrid){ \
 				XRRMonitorInfo monitorInfo; \
-				if(pointerInfo & MovePointerInfo){ \
+				if(pointerInfo & BigscreenPointerInfo){ \
 					monitorInfo = getPointerMonitorInfo(); \
 				}else{ \
 					monitorInfo = getWindowMonitorInfo(event.xany.window); \
 				} \
 				XGetWindowAttributes(display, event.xany.window, &windowAttributes); \
 				if(windowAttributes.x == monitorInfo.x - (int)border && windowAttributes.y == monitorInfo.y - (int)border && windowAttributes.width == monitorInfo.width && windowAttributes.height == monitorInfo.height){ \
-					windowAttributes.width = monitorInfo.width / gridWidth; \
-					windowAttributes.height = monitorInfo.height / gridHeight; \
+					if(option & FloatingFollowGrid){ \
+						windowAttributes.width = monitorInfo.width / gridWidth; \
+						windowAttributes.height = monitorInfo.height / gridHeight; \
+					}else{ \
+						windowAttributes.width = monitorInfo.width / 2; \
+						windowAttributes.height = monitorInfo.height / 2; \
+					} \
 					XMoveResizeWindow(display, event.xany.window, monitorInfo.x + (monitorInfo.width - windowAttributes.width) / 2 - border, monitorInfo.y + (monitorInfo.height - windowAttributes.height) / 2 - border, windowAttributes.width, windowAttributes.height); \
 					XResizeWindow(display, container[currentContainer].subwindow, windowAttributes.width - innerBorders, windowAttributes.height - innerBorders); \
 				}else{ \
@@ -1904,7 +2113,7 @@ bigscreen:{ \
 
 #define CLOSE_KEYPRESS \
 close:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XEvent e = { \
 				.xclient = { \
@@ -1954,16 +2163,18 @@ close:{ \
 
 #define KILL_KEYPRESS \
 kill:{ \
-	for(unsigned int currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
 			XUnmapWindow(display, container[currentContainer].subwindow); \
-			XUnmapWindow(display, container[currentContainer].window); \
+			XUnmapWindow(display, event.xany.window); \
 			XDestroyWindow(display, container[currentContainer].subwindow); \
 			XSetInputFocus(display, XDefaultRootWindow(display), RevertToPointerRoot, CurrentTime); \
-			clearWindowProperties(container[currentContainer].window); \
+			clearWindowProperties(event.xany.window); \
 			container[currentContainer].subwindow = None; \
 			if(container[currentContainer].inGrid){ \
+				XSelectInput(display, event.xany.window, ButtonReleaseMask | EnterWindowMask | ButtonMotionMask); \
 				XSetWindowBorderWidth(display, event.xany.window, border); \
+				XSetWindowBackground(display, container[currentContainer].window, containerBackgroundColor); \
 				container[currentContainer].inGrid = 0; \
 			} \
 			--allocatedContainerAmount; \
@@ -1972,12 +2183,14 @@ kill:{ \
 			lastCreatedWindow = None; \
 			for(currentContainer = 0; currentContainer < containerAmount; ++currentContainer){ \
 				if(!container[currentContainer].subwindow){ \
-					for(currentContainer1 = currentContainer; currentContainer1 < containerAmount - 1; ++currentContainer1){ \
+					--containerAmount; \
+					for(currentContainer1 = currentContainer; currentContainer1 < containerAmount; ++currentContainer1){ \
 						tempWindow = container[currentContainer1 + 1].window; \
 						container[currentContainer1 + 1].window = container[currentContainer1].window; \
 						container[currentContainer1].window = tempWindow; \
 						container[currentContainer1].subwindow = container[currentContainer1 + 1].subwindow; \
 					} \
+					++containerAmount; \
 				}else{ \
 					lastCreatedWindow = container[currentContainer].window; \
 				} \
