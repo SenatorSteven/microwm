@@ -264,7 +264,7 @@ Button button[buttonAmount]; \
 }
 #define REALLOCATE_SUBWINDOWS \
 if(allocatedContainerAmount){ \
-	FILE *file = fopen("/home/steven/.microwm/.subwindows", "r"); \
+	FILE *file = fopen(subwindowsPath, "r"); \
 	if(file){ \
 		{ \
 			char c; \
@@ -652,10 +652,8 @@ if(motionContainer.action){ \
 			motionContainer.window = resizeWindow; \
 			resizeWindow = w; \
 		} \
-		motionContainer.width += 2 * resizeWindowborder; \
-		motionContainer.height += 2 * resizeWindowborder; \
-		XMoveResizeWindow(display, motionContainer.window, motionContainer.x, motionContainer.y, motionContainer.width, motionContainer.height); \
-		XResizeWindow(display, motionContainer.subwindow, motionContainer.width - innerBorders, motionContainer.height - innerBorders); \
+		XMoveResizeWindow(display, motionContainer.window, motionContainer.x + motionContainer.positionOffset + resizeWindowBorder - innerBorder - border, motionContainer.y + motionContainer.positionOffset + resizeWindowBorder - innerBorder - border, motionContainer.width + innerBorders, motionContainer.height + innerBorders); \
+		XResizeWindow(display, motionContainer.subwindow, motionContainer.width, motionContainer.height); \
 		XSelectInput(display, motionContainer.subwindow, ButtonMotionMask | StructureNotifyMask); \
 	} \
 	motionContainer.options = NoMotionOptions; \
@@ -830,36 +828,97 @@ for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++current
 		if(!motionContainer.action){ \
 			XRaiseWindow(display, event.xcrossing.window); \
 			XSetInputFocus(display, container[currentContainer].subwindow, RevertToPointerRoot, CurrentTime); \
+\
+\
+\
+			/*XPeekEvent(display, &event); \
+			if(event.type == EnterNotify){ \
+				XNextEvent(display, &event); \
+			}*/ \
+\
+\
+\
 		} \
-		/*XPeekEvent(display, &event); \
-		if(event.type == EnterNotify){ \
-			XNextEvent(display, &event); \
-		}*/ \
 		break; \
 	} \
 }
-
-
-
-
-
-
-
-
-
+#define UNMAPNOTIFY \
+for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	if(container[currentContainer].subwindow == event.xunmap.window){ \
+		unmapWindow:{ \
+			XUnmapWindow(display, container[currentContainer].window); \
+			XSetInputFocus(display, XDefaultRootWindow(display), RevertToPointerRoot, CurrentTime); \
+			clearWindowProperties(container[currentContainer].window); \
+			container[currentContainer].subwindow = None; \
+			--allocatedContainerAmount; \
+			unsigned int currentContainer1; \
+			const unsigned int containerAmount1 = containerAmount - 1; \
+			Window w; \
+			unsigned int lastCreatedWindowNumber = containerAmount; \
+			for(currentContainer = 0; currentContainer < containerAmount; ++currentContainer){ \
+				if(!container[currentContainer].subwindow){ \
+					for(currentContainer1 = currentContainer; currentContainer1 < containerAmount1; ++currentContainer1){ \
+						w = container[currentContainer1 + 1].window; \
+						container[currentContainer1 + 1].window = container[currentContainer1].window; \
+						container[currentContainer1].window = w; \
+						container[currentContainer1].subwindow = container[currentContainer1 + 1].subwindow; \
+					} \
+				}else{ \
+					lastCreatedWindowNumber = currentContainer; \
+				} \
+			} \
+			if(lastCreatedWindowNumber != containerAmount){ \
+				lastCreatedContainer.window = container[lastCreatedWindowNumber].window; \
+				lastCreatedContainer.option = container[lastCreatedWindowNumber].option; \
+			} \
+			if(allocatedContainerAmount == containerAmount - containerIncrementAmount - 1){ \
+				containerDirective = DecreaseContainerDirective; \
+				goto saveOpenClients; \
+			} \
+			break; \
+		} \
+	} \
+}
+#define CONFIGUREREQUEST \
+bool new = 1; \
+for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	if(container[currentContainer].subwindow == event.xconfigurerequest.window){ \
+		new = 0; \
+		break; \
+	} \
+} \
+if(new){ \
+	const XRRMonitorInfo monitorInfo = getPointerMonitorInfo(monitors, monitorAmount); \
+	XMoveResizeWindow(display, event.xconfigurerequest.window, monitorInfo.x, monitorInfo.y, monitorInfo.width / gridWidth - innerBorders, monitorInfo.height / gridHeight - innerBorders); \
+}else{ \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		if(container[currentContainer].subwindow == event.xconfigurerequest.window){ \
+			XGetWindowAttributes(display, event.xconfigurerequest.window, &windowAttributes); \
+			if(event.xconfigurerequest.value_mask & CWX){ \
+				XMoveWindow(display, event.xconfigurerequest.window, event.xconfigurerequest.x, windowAttributes.y); \
+			} \
+			if(event.xconfigurerequest.value_mask & CWY){ \
+				XMoveWindow(display, event.xconfigurerequest.window, windowAttributes.x, event.xconfigurerequest.y); \
+			} \
+			if(event.xconfigurerequest.value_mask & CWWidth){ \
+				XResizeWindow(display, event.xconfigurerequest.window, event.xconfigurerequest.width, windowAttributes.height); \
+			} \
+			if(event.xconfigurerequest.value_mask & CWHeight){ \
+				XResizeWindow(display, event.xconfigurerequest.window, windowAttributes.width, event.xconfigurerequest.height); \
+			} \
+			if(event.xconfigurerequest.value_mask & CWBorderWidth){ \
+				XSetWindowBorderWidth(display, event.xconfigurerequest.window, event.xconfigurerequest.border_width); \
+			} \
+			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
+			XMoveResizeWindow(display, event.xconfigurerequest.window, innerBorder, innerBorder, windowAttributes.width - innerBorders, windowAttributes.height - innerBorders); \
+			break; \
+		} \
+	} \
+}
 #define SYSTEM_KEYPRESS \
 system:{ \
 	\
 }
-
-
-
-
-
-
-
-
-
 #define FLOATINGMODE_KEYPRESS \
 changeToFloatingMode:{ \
 	if(managementMode != FloatingManagementMode){ \
@@ -905,8 +964,8 @@ changeToFloatingMode:{ \
 					width = monitorInfo.width / 2; \
 					height = monitorInfo.height / 2; \
 				} \
-				x = monitorInfo.x + (monitorInfo.width - width) / 2; \
-				y = monitorInfo.y + (monitorInfo.height - height) / 2; \
+				x = monitorInfo.x + (monitorInfo.width - width) / 2 - border; \
+				y = monitorInfo.y + (monitorInfo.height - height) / 2 - border; \
 				subwindowWidth = width - innerBorders; \
 				subwindowHeight = height - innerBorders; \
 				for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
@@ -1332,32 +1391,36 @@ move:{ \
 				if(!(container[currentContainer].option & InGridContainerOption)){ \
 					XSelectInput(display, XDefaultRootWindow(display), ButtonReleaseMask | ButtonMotionMask | SubstructureRedirectMask); \
 					XGetWindowAttributes(display, event.xany.window, &windowAttributes); \
-					motionContainer.x = windowAttributes.x; \
-					motionContainer.y = windowAttributes.y; \
-					motionContainer.width = windowAttributes.width; \
-					motionContainer.height = windowAttributes.height; \
 					if(event.xbutton.subwindow){ \
 						motionContainer.window = event.xany.window; \
-						motionContainer.pointerOffsetX = border + event.xbutton.x; \
-						motionContainer.pointerOffsetY = border + event.xbutton.y; \
+						motionContainer.x = windowAttributes.x; \
+						motionContainer.y = windowAttributes.y; \
+						motionContainer.width = windowAttributes.width; \
+						motionContainer.height = windowAttributes.height; \
+						motionContainer.pointerOffsetX = event.xbutton.x + border; \
+						motionContainer.pointerOffsetY = event.xbutton.y + border; \
 						motionContainer.action = MoveMotionAction; \
 					}else{ \
 						motionContainer.subwindow = container[currentContainer].subwindow; \
 						if(option & FloatingMinimalResizeOption){ \
 							XSelectInput(display, motionContainer.subwindow, ButtonReleaseMask | ButtonMotionMask | StructureNotifyMask); \
+							motionContainer.x = windowAttributes.x - resizeWindowBorder + innerBorder; \
+							motionContainer.y = windowAttributes.y - resizeWindowBorder + innerBorder; \
+							motionContainer.width = windowAttributes.width - innerBorders; \
+							motionContainer.height = windowAttributes.height - innerBorders; \
+							XMoveResizeWindow(display, resizeWindow, motionContainer.x + border, motionContainer.y + border, motionContainer.width, motionContainer.height); \
+							XMapRaised(display, resizeWindow); \
 							motionContainer.window = resizeWindow; \
-							motionContainer.width -= 2 * resizeWindowborder; \
-							motionContainer.height -= 2 * resizeWindowborder; \
-							XMoveResizeWindow(display, motionContainer.window, motionContainer.x + border, motionContainer.y + border, motionContainer.width, motionContainer.height); \
-							XMapRaised(display, motionContainer.window); \
 							resizeWindow = event.xany.window; \
+							motionContainer.pointerOffsetX = event.xbutton.x + border + resizeWindowBorder - innerBorder; \
+							motionContainer.pointerOffsetY = event.xbutton.y + border + resizeWindowBorder - innerBorder; \
 							motionContainer.positionOffset = border; \
 						}else{ \
 							motionContainer.window = event.xany.window; \
+							motionContainer.pointerOffsetX = event.xbutton.x + border; \
+							motionContainer.pointerOffsetY = event.xbutton.y + border; \
 							motionContainer.positionOffset = 0; \
 						} \
-						motionContainer.pointerOffsetX = border + event.xbutton.x; \
-						motionContainer.pointerOffsetY = border + event.xbutton.y; \
 						motionContainer.action = ResizeMotionAction; \
 						if(event.xbutton.y < (int)innerBorder){ \
 							if(event.xbutton.x < (int)innerBorder){ \
@@ -1718,33 +1781,6 @@ if(managementMode == FloatingManagementMode){ \
 		} \
 	} \
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #define MOVEABOVEMONITOR_KEYPRESS \
 moveAboveMonitor:{ \
 	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
@@ -1861,33 +1897,6 @@ moveRightMonitor:{ \
 		} \
 	} \
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #define ADDWINDOWTOGRID_KEYPRESS \
 addWindowToGridSlot:{ \
 	if(managementMode == FloatingManagementMode){ \
@@ -2080,11 +2089,7 @@ moveAboveGridSlot:{ \
 									break; \
 								} \
 							} \
-							int x; \
-							int y; \
-							const XRRMonitorInfo monitorInfo = getWindowMonitorInfo(container[currentContainer].window, monitors, monitorAmount); \
-							getGridSlotData(monitorInfo, container[currentContainer].gridX, container[currentContainer].gridY, gridWidth, gridHeight, &x, &y, NULL, NULL); \
-							XMoveWindow(display, event.xany.window, monitorInfo.x + x, monitorInfo.y + y); \
+							goto moveGridSlot; \
 						} \
 					} \
 				} \
@@ -2111,11 +2116,7 @@ moveBelowGridSlot:{ \
 									break; \
 								} \
 							} \
-							int x; \
-							int y; \
-							const XRRMonitorInfo monitorInfo = getWindowMonitorInfo(container[currentContainer].window, monitors, monitorAmount); \
-							getGridSlotData(monitorInfo, container[currentContainer].gridX, container[currentContainer].gridY, gridWidth, gridHeight, &x, &y, NULL, NULL); \
-							XMoveWindow(display, event.xany.window, monitorInfo.x + x, monitorInfo.y + y); \
+							goto moveGridSlot; \
 						} \
 					} \
 				} \
@@ -2142,11 +2143,7 @@ moveNextGridSlot:{ \
 									break; \
 								} \
 							} \
-							int x; \
-							int y; \
-							const XRRMonitorInfo monitorInfo = getWindowMonitorInfo(container[currentContainer].window, monitors, monitorAmount); \
-							getGridSlotData(monitorInfo, container[currentContainer].gridX, container[currentContainer].gridY, gridWidth, gridHeight, &x, &y, NULL, NULL); \
-							XMoveWindow(display, event.xany.window, monitorInfo.x + x, monitorInfo.y + y); \
+							goto moveGridSlot; \
 						} \
 					} \
 				} \
@@ -2173,11 +2170,16 @@ movePreviousGridSlot:{ \
 									break; \
 								} \
 							} \
-							int x; \
-							int y; \
-							const XRRMonitorInfo monitorInfo = getWindowMonitorInfo(container[currentContainer].window, monitors, monitorAmount); \
-							getGridSlotData(monitorInfo, container[currentContainer].gridX, container[currentContainer].gridY, gridWidth, gridHeight, &x, &y, NULL, NULL); \
-							XMoveWindow(display, event.xany.window, monitorInfo.x + x, monitorInfo.y + y); \
+							moveGridSlot:{ \
+								int x; \
+								int y; \
+								unsigned int width; \
+								unsigned int height; \
+								const XRRMonitorInfo monitorInfo = getWindowMonitorInfo(container[currentContainer].window, monitors, monitorAmount); \
+								getGridSlotData(monitorInfo, container[currentContainer].gridX, container[currentContainer].gridY, gridWidth, gridHeight, &x, &y, &width, &height); \
+								XMoveResizeWindow(display, event.xany.window, monitorInfo.x + x, monitorInfo.y + y, width, height); \
+								XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
+							} \
 						} \
 					} \
 				} \
@@ -2800,64 +2802,58 @@ shrinkWindowDownRight:{ \
 		} \
 	} \
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #define FULLSCREEN_KEYPRESS \
 fullscreen:{ \
 	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
-			if(!container[currentContainer].option & InGridContainerOption){ \
-				XRRMonitorInfo monitorInfo; \
-				if(pointerInfo & FullscreenPointerInfo){ \
-					monitorInfo = getPointerMonitorInfo(monitors, monitorAmount); \
-				}else{ \
-					monitorInfo = getWindowMonitorInfo(event.xany.window, monitors, monitorAmount); \
-				} \
-				XGetWindowAttributes(display, event.xany.window, &windowAttributes); \
-				if(windowAttributes.x == monitorInfo.x - (int)border && windowAttributes.y == monitorInfo.y - (int)border && windowAttributes.width == monitorInfo.width && windowAttributes.height == monitorInfo.height){ \
-					{ \
-						XEvent e = { \
-							.xclient = { \
-								.type = ClientMessage, \
-								.send_event = False, \
-								.display = display, \
-								.window = container[currentContainer].subwindow, \
-								.message_type = XInternAtom(display, "_NET_WM_STATE", False), \
-								.format = 32, \
-								.data = { \
-									.l[0] = XInternAtom(display, "_NET_WM_STATE_REMOVE", False), \
-									.l[1] = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False), \
-									.l[2] = 0, \
-									.l[3] = 1 \
-								} \
+			XRRMonitorInfo monitorInfo = getWindowMonitorInfo(event.xany.window, monitors, monitorAmount); \
+			XGetWindowAttributes(display, event.xany.window, &windowAttributes); \
+			if(!(container[currentContainer].option & InGridContainerOption)){ \
+				monitorInfo.x -= border; \
+				monitorInfo.y -= border; \
+			} \
+			if(windowAttributes.x == monitorInfo.x && windowAttributes.y == monitorInfo.y && windowAttributes.width == monitorInfo.width && windowAttributes.height == monitorInfo.height){ \
+				{ \
+					XEvent e = { \
+						.xclient = { \
+							.type = ClientMessage, \
+							.send_event = False, \
+							.display = display, \
+							.window = container[currentContainer].subwindow, \
+							.message_type = XInternAtom(display, "_NET_WM_STATE", False), \
+							.format = 32, \
+							.data = { \
+								.l[0] = XInternAtom(display, "_NET_WM_STATE_REMOVE", False), \
+								.l[1] = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False), \
+								.l[2] = 0, \
+								.l[3] = 0 \
 							} \
-						}; \
-						XSendEvent(display, e.xclient.window, False, PropertyChangeMask, &e); \
+						} \
+					}; \
+					XSendEvent(display, e.xclient.window, False, PropertyChangeMask, &e); \
+				} \
+				if(managementMode == TilingManagementMode){ \
+\
+\
+\
+					\
+\
+\
+\
+				}else if(managementMode == GridingManagementMode || container[currentContainer].option & InGridContainerOption){ \
+					int x1; \
+					int y1; \
+					getGridSlotData(monitorInfo, container[currentContainer].gridX, container[currentContainer].gridY, gridWidth, gridHeight, &windowAttributes.x, &windowAttributes.y, NULL, NULL); \
+					getGridSlotData(monitorInfo, container[currentContainer].gridX + container[currentContainer].gridWidth - 1, container[currentContainer].gridY + container[currentContainer].gridHeight - 1, gridWidth, gridHeight, &x1, &y1, (unsigned int *)&windowAttributes.width, (unsigned int *)&windowAttributes.height); \
+					windowAttributes.width += x1 - windowAttributes.x; \
+					windowAttributes.height += y1 - windowAttributes.y; \
+					XMoveResizeWindow(display, event.xany.window, monitorInfo.x + windowAttributes.x, monitorInfo.y + windowAttributes.y, windowAttributes.width, windowAttributes.height); \
+					XResizeWindow(display, container[currentContainer].subwindow, windowAttributes.width - innerBorders, windowAttributes.height - innerBorders); \
+				}else{ \
+					monitorInfo.x += border; \
+					monitorInfo.y += border; \
+					if(pointerInfo & FullscreenPointerInfo){ \
+						monitorInfo = getPointerMonitorInfo(monitors, monitorAmount); \
 					} \
 					if(option & FloatingFollowGrid){ \
 						windowAttributes.width = monitorInfo.width / gridWidth; \
@@ -2868,74 +2864,81 @@ fullscreen:{ \
 					} \
 					XMoveResizeWindow(display, event.xany.window, monitorInfo.x + (monitorInfo.width - windowAttributes.width) / 2 - border, monitorInfo.y + (monitorInfo.height - windowAttributes.height) / 2 - border, windowAttributes.width, windowAttributes.height); \
 					XResizeWindow(display, container[currentContainer].subwindow, windowAttributes.width - innerBorders, windowAttributes.height - innerBorders); \
-				}else{ \
-					{ \
-						XEvent e = { \
-							.xclient = { \
-								.type = ClientMessage, \
-								.send_event = False, \
-								.display = display, \
-								.window = container[currentContainer].subwindow, \
-								.message_type = XInternAtom(display, "_NET_WM_STATE", False), \
-								.format = 32, \
-								.data = { \
-									.l[0] = XInternAtom(display, "_NET_WM_STATE_ADD", False), \
-									.l[1] = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False), \
-									.l[2] = 0, \
-									.l[3] = 1 \
-								} \
-							} \
-						}; \
-						XSendEvent(display, e.xclient.window, False, PropertyChangeMask, &e); \
-					} \
-					XMoveResizeWindow(display, event.xany.window, monitorInfo.x - border, monitorInfo.y - border, monitorInfo.width, monitorInfo.height); \
-					XResizeWindow(display, container[currentContainer].subwindow, monitorInfo.width - innerBorders, monitorInfo.height - innerBorders); \
 				} \
+			}else{ \
+				{ \
+					XEvent e = { \
+						.xclient = { \
+							.type = ClientMessage, \
+							.send_event = False, \
+							.display = display, \
+							.window = container[currentContainer].subwindow, \
+							.message_type = XInternAtom(display, "_NET_WM_STATE", False), \
+							.format = 32, \
+							.data = { \
+								.l[0] = XInternAtom(display, "_NET_WM_STATE_ADD", False), \
+								.l[1] = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False), \
+								.l[2] = 0, \
+								.l[3] = 0 \
+							} \
+						} \
+					}; \
+					XSendEvent(display, e.xclient.window, False, PropertyChangeMask, &e); \
+\
+\
+\
+					/*Atom type;
+					int format;
+					unsigned long int itemAmount;
+					unsigned long int bytesAfter;
+					unsigned char *data;
+					const long int size = sizeof(Atom);
+					XChangeProperty(display, destination, property[current], type, format, PropModeReplace, data, itemAmount);*/ \
+\
+\
+\
+				} \
+				XMoveResizeWindow(display, event.xany.window, monitorInfo.x, monitorInfo.y, monitorInfo.width, monitorInfo.height); \
+				XResizeWindow(display, container[currentContainer].subwindow, monitorInfo.width - innerBorders, monitorInfo.height - innerBorders); \
 			} \
 			break; \
 		} \
 	} \
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #define BIGSCREEN_KEYPRESS \
 bigscreen:{ \
 	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 		if(container[currentContainer].window == event.xany.window){ \
-			if(!container[currentContainer].option & InGridContainerOption){ \
-				XRRMonitorInfo monitorInfo; \
-				if(pointerInfo & BigscreenPointerInfo){ \
-					monitorInfo = getPointerMonitorInfo(monitors, monitorAmount); \
+			XRRMonitorInfo monitorInfo = getWindowMonitorInfo(event.xany.window, monitors, monitorAmount); \
+			XGetWindowAttributes(display, event.xany.window, &windowAttributes); \
+			if(!(container[currentContainer].option & InGridContainerOption)){ \
+				monitorInfo.x -= border; \
+				monitorInfo.y -= border; \
+			} \
+			if(windowAttributes.x == monitorInfo.x && windowAttributes.y == monitorInfo.y && windowAttributes.width == monitorInfo.width && windowAttributes.height == monitorInfo.height){ \
+				if(managementMode == TilingManagementMode){ \
+\
+\
+\
+					\
+\
+\
+\
+				}else if(managementMode == GridingManagementMode || container[currentContainer].option & InGridContainerOption){ \
+					int x1; \
+					int y1; \
+					getGridSlotData(monitorInfo, container[currentContainer].gridX, container[currentContainer].gridY, gridWidth, gridHeight, &windowAttributes.x, &windowAttributes.y, NULL, NULL); \
+					getGridSlotData(monitorInfo, container[currentContainer].gridX + container[currentContainer].gridWidth - 1, container[currentContainer].gridY + container[currentContainer].gridHeight - 1, gridWidth, gridHeight, &x1, &y1, (unsigned int *)&windowAttributes.width, (unsigned int *)&windowAttributes.height); \
+					windowAttributes.width += x1 - windowAttributes.x; \
+					windowAttributes.height += y1 - windowAttributes.y; \
+					XMoveResizeWindow(display, event.xany.window, monitorInfo.x + windowAttributes.x, monitorInfo.y + windowAttributes.y, windowAttributes.width, windowAttributes.height); \
+					XResizeWindow(display, container[currentContainer].subwindow, windowAttributes.width - innerBorders, windowAttributes.height - innerBorders); \
 				}else{ \
-					monitorInfo = getWindowMonitorInfo(event.xany.window, monitors, monitorAmount); \
-				} \
-				XGetWindowAttributes(display, event.xany.window, &windowAttributes); \
-				if(windowAttributes.x == monitorInfo.x - (int)border && windowAttributes.y == monitorInfo.y - (int)border && windowAttributes.width == monitorInfo.width && windowAttributes.height == monitorInfo.height){ \
+					monitorInfo.x += border; \
+					monitorInfo.y += border; \
+					if(pointerInfo & BigscreenPointerInfo){ \
+						monitorInfo = getPointerMonitorInfo(monitors, monitorAmount); \
+					} \
 					if(option & FloatingFollowGrid){ \
 						windowAttributes.width = monitorInfo.width / gridWidth; \
 						windowAttributes.height = monitorInfo.height / gridHeight; \
@@ -2945,42 +2948,15 @@ bigscreen:{ \
 					} \
 					XMoveResizeWindow(display, event.xany.window, monitorInfo.x + (monitorInfo.width - windowAttributes.width) / 2 - border, monitorInfo.y + (monitorInfo.height - windowAttributes.height) / 2 - border, windowAttributes.width, windowAttributes.height); \
 					XResizeWindow(display, container[currentContainer].subwindow, windowAttributes.width - innerBorders, windowAttributes.height - innerBorders); \
-				}else{ \
-					XMoveResizeWindow(display, event.xany.window, monitorInfo.x - border, monitorInfo.y - border, monitorInfo.width, monitorInfo.height); \
-					XResizeWindow(display, container[currentContainer].subwindow, monitorInfo.width - innerBorders, monitorInfo.height - innerBorders); \
 				} \
+			}else{ \
+				XMoveResizeWindow(display, event.xany.window, monitorInfo.x, monitorInfo.y, monitorInfo.width, monitorInfo.height); \
+				XResizeWindow(display, container[currentContainer].subwindow, monitorInfo.width - innerBorders, monitorInfo.height - innerBorders); \
 			} \
 			break; \
 		} \
 	} \
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #define CLOSE_KEYPRESS \
 close:{ \
 	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
@@ -3004,33 +2980,6 @@ close:{ \
 		} \
 	} \
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #define KILL_KEYPRESS \
 kill:{ \
 	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
@@ -3039,6 +2988,6 @@ kill:{ \
 			XDestroyWindow(display, container[currentContainer].subwindow); \
 			goto unmapWindow; \
 		} \
-	}
+	} \
 }
 #endif
