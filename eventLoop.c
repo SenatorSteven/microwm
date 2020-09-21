@@ -242,8 +242,6 @@ void eventLoop(void){
 	PointerInfo pointerInfo = MapPointerInfo | MovePointerInfo | ChangeToFloatingPointerInfo | ChangeToGridingPointerInfo;
 	DefaultGridPosition defaultGridPosition = CenterDefaultGridPosition;
 
-
-
 	Cascade cascade = {
 		.mode = SmartCascadeMode,
 		.overrideGridWindows = 0,
@@ -260,6 +258,8 @@ void eventLoop(void){
 		.subaction = NoMotionSubaction,
 		.options = NoMotionOptions
 	};
+
+	char *subwindowsPath = "/home/steven/.microwm/.subwindows";
 
 
 
@@ -364,19 +364,19 @@ void eventLoop(void){
 
 
 	Window resizeWindow;
-	unsigned int resizeWindowborder = 1;
+	unsigned int resizeWindowBorder = 1;
 	if(option & FloatingMinimalResizeOption){
-		ARGB resizeWindowbackgroundColor = 0x7FF07746;
-		ARGB resizeWindowborderColor = 0xFFF2C6B4;
+		ARGB resizeWindowBackgroundColor = 0x7FF07746;
+		ARGB resizeWindowBorderColor = 0xFFF2C6B4;
 		const Window rootWindow = XDefaultRootWindow(display);
 		XVisualInfo visualInfo;
 		XMatchVisualInfo(display, XDefaultScreen(display), 32, TrueColor, &visualInfo);
 		XSetWindowAttributes windowAttributes = {
-			.background_pixel = resizeWindowbackgroundColor,
-			.border_pixel = resizeWindowborderColor,
+			.background_pixel = resizeWindowBackgroundColor,
+			.border_pixel = resizeWindowBorderColor,
 			.colormap = XCreateColormap(display, rootWindow, visualInfo.visual, AllocNone)
 		};
-		resizeWindow = XCreateWindow(display, rootWindow, 0, 0, 1, 1, resizeWindowborder, visualInfo.depth, InputOutput, visualInfo.visual, CWBackPixel | CWBorderPixel | CWColormap, &windowAttributes);
+		resizeWindow = XCreateWindow(display, rootWindow, 0, 0, 1, 1, resizeWindowBorder, visualInfo.depth, InputOutput, visualInfo.visual, CWBackPixel | CWBorderPixel | CWColormap, &windowAttributes);
 	}
 
 
@@ -471,51 +471,7 @@ void eventLoop(void){
 				}else if(event.type == EnterNotify){
 					ENTERNOTIFY
 				}else if(event.type == UnmapNotify){
-					for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){
-						if(container[currentContainer].subwindow == event.xunmap.window){
-							unmapWindow:{
-								XUnmapWindow(display, container[currentContainer].window);
-								XSetInputFocus(display, XDefaultRootWindow(display), RevertToPointerRoot, CurrentTime);
-								clearWindowProperties(container[currentContainer].window);
-								container[currentContainer].subwindow = None;
-								--allocatedContainerAmount;
-								unsigned int currentContainer1;
-								const unsigned int containerAmount1 = containerAmount - 1;
-								Window w;
-								unsigned int lastCreatedWindowNumber = containerAmount;
-								for(currentContainer = 0; currentContainer < containerAmount; ++currentContainer){
-									if(!container[currentContainer].subwindow){
-										for(currentContainer1 = currentContainer; currentContainer1 < containerAmount1; ++currentContainer1){
-											w = container[currentContainer1 + 1].window;
-											container[currentContainer1 + 1].window = container[currentContainer1].window;
-											container[currentContainer1].window = w;
-											container[currentContainer1].subwindow = container[currentContainer1 + 1].subwindow;
-										}
-									}else{
-										lastCreatedWindowNumber = currentContainer;
-									}
-								}
-								if(lastCreatedWindowNumber != containerAmount){
-									lastCreatedContainer.window = container[lastCreatedWindowNumber].window;
-									lastCreatedContainer.option = container[lastCreatedWindowNumber].option;
-								}
-								if(allocatedContainerAmount == containerAmount - containerIncrementAmount - 1){
-									containerDirective = DecreaseContainerDirective;
-									goto saveOpenClients;
-								}
-								break;
-							}
-						}
-					}
-
-
-
-
-
-
-
-
-
+					UNMAPNOTIFY
 				}else if(event.type == MapRequest){
 					copyWindowProperties(event.xmaprequest.window, container[allocatedContainerAmount].window);
 					XReparentWindow(display, event.xmaprequest.window, container[allocatedContainerAmount].window, 0, 0);
@@ -554,17 +510,16 @@ void eventLoop(void){
 									int y = monitorInfo.y + (monitorInfo.height - height) / 2 - border;
 									if(cascade.mode == SmartCascadeMode && lastCreatedContainer.window){
 										unsigned int startingPoint = 0;
-										restartLoop:{
-											for(currentContainer = startingPoint; currentContainer < allocatedContainerAmount; ++currentContainer){
-												if(XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes)){
-													if(windowAttributes.x == x && windowAttributes.y == y && (unsigned int)windowAttributes.width == width && (unsigned int)windowAttributes.height == height){
-														x += cascade.offsetX;
-														y += cascade.offsetY;
-														if(currentContainer == startingPoint){
-															++startingPoint;
-														}
-														goto restartLoop;
+										for(currentContainer = startingPoint; currentContainer < allocatedContainerAmount; ++currentContainer){
+											if(XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes)){
+												if(windowAttributes.x == x && windowAttributes.y == y && (unsigned int)windowAttributes.width == width && (unsigned int)windowAttributes.height == height){
+													x += cascade.offsetX;
+													y += cascade.offsetY;
+													if(currentContainer == startingPoint){
+														++startingPoint;
 													}
+													currentContainer = startingPoint;
+													continue;
 												}
 											}
 										}
@@ -661,7 +616,7 @@ void eventLoop(void){
 					if(++allocatedContainerAmount == containerAmount){
 						containerDirective = IncreaseContainerDirective;
 						saveOpenClients:{
-							FILE *const file = fopen("/home/steven/.microwm/.subwindows", "w");
+							FILE *const file = fopen(subwindowsPath, "w");
 							if(file){
 								for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){
 									XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes);
@@ -673,25 +628,7 @@ void eventLoop(void){
 						}
 					}
 				}else if(event.type == ConfigureRequest){
-					bool new = 1;
-					for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){
-						if(container[currentContainer].subwindow == event.xconfigurerequest.window){
-							new = 0;
-							break;
-						}
-					}
-					if(new){
-						const XRRMonitorInfo monitorInfo = getPointerMonitorInfo(monitors, monitorAmount);
-						XMoveResizeWindow(display, event.xconfigurerequest.window, monitorInfo.x, monitorInfo.y, monitorInfo.width / gridWidth - innerBorders, monitorInfo.height / gridHeight - innerBorders);
-					}else{
-
-
-
-						//
-
-
-
-					}
+					CONFIGUREREQUEST
 				}else if(event.type == ClientMessage){
 					//
 
@@ -782,9 +719,9 @@ static void grabContainerKeysButtons(const Window w, const unsigned int shortcut
 	return;
 }
 static XRRMonitorInfo getPointerMonitorInfo(const XRRMonitorInfo *const monitors, const unsigned int monitorAmount){
-	XRRMonitorInfo monitorInfo;
+	unsigned int current;
 	if(monitorAmount == 1){
-		monitorInfo = *monitors;
+		current = 0;
 	}else{
 		int x;
 		int y;
@@ -796,18 +733,17 @@ static XRRMonitorInfo getPointerMonitorInfo(const XRRMonitorInfo *const monitors
 				y = 0;
 			}
 		}
-		unsigned int current;
 		for(current = 0; current < monitorAmount; ++current){
-			monitorInfo = monitors[current];
-			if(monitorInfo.x <= x && monitorInfo.x + monitorInfo.width > x && monitorInfo.y <= y && monitorInfo.y + monitorInfo.height > y){
-				break;
+			if(monitors[current].x <= x && monitors[current].x + monitors[current].width > x && monitors[current].y <= y && monitors[current].y + monitors[current].height > y){
+				goto emergencyExit;
 			}
 		}
 		if(current == monitorAmount){
-			monitorInfo = *monitors;
+			current = 0;
 		}
 	}
-	return monitorInfo;
+	emergencyExit:{}
+	return monitors[current];
 }
 static XRRMonitorInfo getWindowMonitorInfo(const Window w, const XRRMonitorInfo *const monitors, const unsigned int monitorAmount){
 	XRRMonitorInfo monitorInfo;
@@ -816,11 +752,11 @@ static XRRMonitorInfo getWindowMonitorInfo(const Window w, const XRRMonitorInfo 
 	}else{
 		unsigned int current;
 		XWindowAttributes windowAttributes;
-		XGetWindowAttributes(display, w, &windowAttributes);
 		unsigned int pixels;
 		unsigned int height;
 		unsigned int mostPixels = 0;
 		unsigned int monitorToUse = 0;
+		XGetWindowAttributes(display, w, &windowAttributes);
 		if(windowAttributes.border_width){
 			windowAttributes.border_width *= 2;
 			windowAttributes.width += windowAttributes.border_width;
