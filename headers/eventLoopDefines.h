@@ -262,6 +262,47 @@ Button button[buttonAmount]; \
 	button[currentButton].masks = Mod4Mask; \
 	button[currentButton].command = MoveCommand; \
 }
+#define SETUP_CONTAINERS_SEPARATORS \
+separatorAmount = 2 * containerAmount; \
+Container container[containerAmount]; \
+Window separator[separatorAmount]; \
+{ \
+	const Window rootWindow = XDefaultRootWindow(display); \
+	XSelectInput(display, rootWindow, SubstructureRedirectMask); \
+	{ \
+		XVisualInfo visualInfo; \
+		XMatchVisualInfo(display, XDefaultScreen(display), 32, TrueColor, &visualInfo); \
+		const uint16_t windowAttributesMasks = CWBackPixel | CWBorderPixel | CWColormap; \
+		XSetWindowAttributes windowAttributes = { \
+			.background_pixel = separatorBackgroundColor, \
+			.border_pixel = separatorBorderColor, \
+			.colormap = XCreateColormap(display, rootWindow, visualInfo.visual, AllocNone) \
+		}; \
+		unsigned int currentBorder; \
+		if(managementMode == FloatingManagementMode){ \
+			currentBorder = border; \
+			windowAttributes.background_pixel = floatingContainerBackgroundColor; \
+		}else if(managementMode == GridingManagementMode){ \
+			currentBorder = 0; \
+			windowAttributes.background_pixel = gridingContainerBackgroundColor; \
+		}else{ \
+			for(unsigned int currentSeparator = 0; currentSeparator < separatorAmount; ++currentSeparator){ \
+				separator[currentSeparator] = XCreateWindow(display, rootWindow, 0, 0, 1, 1, separatorBorder, visualInfo.depth, InputOutput, visualInfo.visual, windowAttributesMasks, &windowAttributes); \
+			} \
+			separatorsExist = 1; \
+			currentBorder = 0; \
+			windowAttributes.background_pixel = tilingContainerBackgroundColor; \
+		} \
+		windowAttributes.border_pixel = containerBorderColor; \
+		Window w; \
+		for(currentContainer = 0; currentContainer < containerAmount; ++currentContainer){ \
+			w = XCreateWindow(display, rootWindow, 0, 0, 1, 1, currentBorder, visualInfo.depth, InputOutput, visualInfo.visual, windowAttributesMasks, &windowAttributes); \
+			grabContainerKeysButtons(w, shortcutAmount, shortcut, buttonAmount, button); \
+			container[currentContainer].window = w; \
+			container[currentContainer].subwindow = None; \
+		} \
+	} \
+}
 #define REALLOCATE_SUBWINDOWS \
 if(allocatedContainerAmount){ \
 	FILE *file = fopen(subwindowsPath, "r"); \
@@ -642,279 +683,6 @@ for(unsigned int currentButton = 0; currentButton < buttonAmount; ++currentButto
 if(mode != ContinueMode){ \
 	break; \
 }
-#define BUTTONRELEASE \
-if(motionContainer.action){ \
-	XSelectInput(display, XDefaultRootWindow(display), SubstructureRedirectMask); \
-	if(option & FloatingMinimalResizeOption && motionContainer.action == ResizeMotionAction){ \
-		XUnmapWindow(display, motionContainer.window); \
-		{ \
-			const Window w = motionContainer.window; \
-			motionContainer.window = resizeWindow; \
-			resizeWindow = w; \
-		} \
-		XMoveResizeWindow(display, motionContainer.window, motionContainer.x + motionContainer.positionOffset + resizeWindowBorder - innerBorder - border, motionContainer.y + motionContainer.positionOffset + resizeWindowBorder - innerBorder - border, motionContainer.width + innerBorders, motionContainer.height + innerBorders); \
-		XResizeWindow(display, motionContainer.subwindow, motionContainer.width, motionContainer.height); \
-		XSelectInput(display, motionContainer.subwindow, ButtonMotionMask | StructureNotifyMask); \
-	} \
-	motionContainer.options = NoMotionOptions; \
-	motionContainer.action = NoMotionAction; \
-}
-#define MOTIONNOTIFY \
-if(motionContainer.options & CanActOption){ \
-	if(motionContainer.action == MoveMotionAction){ \
-		if(option & FloatingAllowStickingOption){ \
-			const XRRMonitorInfo monitorInfo = getWindowMonitorInfo(motionContainer.window, monitors, monitorAmount); \
-			if(motionContainer.x + (int)border >= monitorInfo.x && motionContainer.x + (int)border <= monitorInfo.x + floatingStickyThresholdX){ \
-				if(!(motionContainer.options & HasLockedXOption)){ \
-					motionContainer.x = monitorInfo.x - border; \
-					XMoveWindow(display, motionContainer.window, motionContainer.x, motionContainer.y); \
-					motionContainer.movementBorderX = event.xmotion.x_root + floatingDistanceToTravelX; \
-					motionContainer.options |= HasLockedXOption; \
-				}else{ \
-					if(event.xmotion.x_root >= motionContainer.movementBorderX){ \
-						motionContainer.options ^= HasLockedXOption; \
-					} \
-				} \
-			}else if(motionContainer.x + (int)(motionContainer.width + border) >= monitorInfo.x + monitorInfo.width && motionContainer.x + (int)(motionContainer.width + border) <= monitorInfo.x + monitorInfo.width + floatingStickyThresholdX){ \
-				if(!(motionContainer.options & HasLockedXOption)){ \
-					motionContainer.x = monitorInfo.x + monitorInfo.width - motionContainer.width - border; \
-					XMoveWindow(display, motionContainer.window, motionContainer.x, motionContainer.y); \
-					motionContainer.movementBorderX = event.xmotion.x_root - floatingDistanceToTravelX; \
-					motionContainer.options |= HasLockedXOption; \
-				}else{ \
-					if(event.xmotion.x_root <= motionContainer.movementBorderX){ \
-						motionContainer.options ^= HasLockedXOption; \
-					} \
-				} \
-			} \
-			if(motionContainer.y + (int)border >= monitorInfo.y && motionContainer.y + (int)border <= monitorInfo.y + floatingStickyThresholdY){ \
-				if(!(motionContainer.options & HasLockedYOption)){ \
-					motionContainer.y = monitorInfo.y - border; \
-					XMoveWindow(display, motionContainer.window, motionContainer.x, motionContainer.y); \
-					motionContainer.movementBorderY = event.xmotion.y_root + floatingDistanceToTravelY; \
-					motionContainer.options |= HasLockedYOption; \
-				}else{ \
-					if(event.xmotion.y_root >= motionContainer.movementBorderY){ \
-						motionContainer.options ^= HasLockedYOption; \
-					} \
-				} \
-			}else if(motionContainer.y + (int)(motionContainer.height + border) >= monitorInfo.y + monitorInfo.height && motionContainer.y + (int)(motionContainer.height + border) <= monitorInfo.y + monitorInfo.height + floatingStickyThresholdY){ \
-				if(!(motionContainer.options & HasLockedYOption)){ \
-					motionContainer.y = monitorInfo.y + monitorInfo.height - motionContainer.height - border; \
-					XMoveWindow(display, motionContainer.window, motionContainer.x, motionContainer.y); \
-					motionContainer.movementBorderY = event.xmotion.y_root - floatingDistanceToTravelY; \
-					motionContainer.options |= HasLockedYOption; \
-				}else{ \
-					if(event.xmotion.y_root <= motionContainer.movementBorderY){ \
-						motionContainer.options ^= HasLockedYOption; \
-					} \
-				} \
-			} \
-			if(!(motionContainer.options & HasLockedXOption) || !(motionContainer.options & HasLockedYOption)){ \
-				if(!(motionContainer.options & HasLockedXOption)){ \
-					motionContainer.x = event.xmotion.x_root - motionContainer.pointerOffsetX; \
-				} \
-				if(!(motionContainer.options & HasLockedYOption)){ \
-					motionContainer.y = event.xmotion.y_root - motionContainer.pointerOffsetY; \
-				} \
-				XMoveWindow(display, motionContainer.window, motionContainer.x, motionContainer.y); \
-			} \
-		}else{ \
-			XMoveWindow(display, motionContainer.window, event.xmotion.x_root - motionContainer.pointerOffsetX, event.xmotion.y_root - motionContainer.pointerOffsetY); \
-		} \
-	}else if(motionContainer.action == ResizeMotionAction){ \
-		if(motionContainer.subaction == UpResizeMotionSubaction){ \
-			motionContainer.height += motionContainer.pointerOffsetY + motionContainer.y - event.xmotion.y_root; \
-			if((int)motionContainer.height <= (int)innerBorders){ \
-				motionContainer.height = innerBorders + 1; \
-			}else{ \
-				motionContainer.y = event.xmotion.y_root - motionContainer.pointerOffsetY; \
-			} \
-			XMoveResizeWindow(display, motionContainer.window, motionContainer.x + motionContainer.positionOffset, motionContainer.y + motionContainer.positionOffset, motionContainer.width, motionContainer.height); \
-		}else if(motionContainer.subaction == DownResizeMotionSubaction){ \
-			motionContainer.height -= motionContainer.pointerOffsetY + motionContainer.y - event.xmotion.y_root; \
-			if((int)motionContainer.height <= (int)innerBorders){ \
-				motionContainer.height = innerBorders + 1; \
-			}else{ \
-				motionContainer.pointerOffsetY = event.xmotion.y_root - motionContainer.y; \
-			} \
-			XResizeWindow(display, motionContainer.window, motionContainer.width, motionContainer.height); \
-		}else if(motionContainer.subaction == LeftResizeMotionSubaction){ \
-			motionContainer.width += motionContainer.pointerOffsetX + motionContainer.x - event.xmotion.x_root; \
-			if((int)motionContainer.width <= (int)innerBorders){ \
-				motionContainer.width = innerBorders + 1; \
-			}else{ \
-				motionContainer.x = event.xmotion.x_root - motionContainer.pointerOffsetX; \
-			} \
-			XMoveResizeWindow(display, motionContainer.window, motionContainer.x + motionContainer.positionOffset, motionContainer.y + motionContainer.positionOffset, motionContainer.width, motionContainer.height); \
-		}else if(motionContainer.subaction == RightResizeMotionSubaction){ \
-			motionContainer.width -= motionContainer.pointerOffsetX + motionContainer.x - event.xmotion.x_root; \
-			if((int)motionContainer.width <= (int)innerBorders){ \
-				motionContainer.width = innerBorders + 1; \
-			}else{ \
-				motionContainer.pointerOffsetX = event.xmotion.x_root - motionContainer.x; \
-			} \
-			XResizeWindow(display, motionContainer.window, motionContainer.width, motionContainer.height); \
-		}else if(motionContainer.subaction == UpLeftResizeMotionSubaction){ \
-			motionContainer.width += motionContainer.pointerOffsetX + motionContainer.x - event.xmotion.x_root; \
-			motionContainer.height += motionContainer.pointerOffsetY + motionContainer.y - event.xmotion.y_root; \
-			if((int)motionContainer.width <= (int)innerBorders){ \
-				motionContainer.width = innerBorders + 1; \
-			}else{ \
-				motionContainer.x = event.xmotion.x_root - motionContainer.pointerOffsetX; \
-			} \
-			if((int)motionContainer.height <= (int)innerBorders){ \
-				motionContainer.height = innerBorders + 1; \
-			}else{ \
-				motionContainer.y = event.xmotion.y_root - motionContainer.pointerOffsetY; \
-			} \
-			XMoveResizeWindow(display, motionContainer.window, motionContainer.x + motionContainer.positionOffset, motionContainer.y + motionContainer.positionOffset, motionContainer.width, motionContainer.height); \
-		}else if(motionContainer.subaction == UpRightResizeMotionSubaction){ \
-			motionContainer.width -= motionContainer.pointerOffsetX + motionContainer.x - event.xmotion.x_root; \
-			motionContainer.height += motionContainer.pointerOffsetY + motionContainer.y - event.xmotion.y_root; \
-			if((int)motionContainer.width <= (int)innerBorders){ \
-				motionContainer.width = innerBorders + 1; \
-			}else{ \
-				motionContainer.pointerOffsetX = event.xmotion.x_root - motionContainer.x; \
-			} \
-			if((int)motionContainer.height <= (int)innerBorders){ \
-				motionContainer.height = innerBorders + 1; \
-			}else{ \
-				motionContainer.y = event.xmotion.y_root - motionContainer.pointerOffsetY; \
-			} \
-			XMoveResizeWindow(display, motionContainer.window, motionContainer.x + motionContainer.positionOffset, motionContainer.y + motionContainer.positionOffset, motionContainer.width, motionContainer.height); \
-		}else if(motionContainer.subaction == DownLeftResizeMotionSubaction){ \
-			motionContainer.width += motionContainer.pointerOffsetX + motionContainer.x - event.xmotion.x_root; \
-			motionContainer.height -= motionContainer.pointerOffsetY + motionContainer.y - event.xmotion.y_root; \
-			if((int)motionContainer.width <= (int)innerBorders){ \
-				motionContainer.width = innerBorders + 1; \
-			}else{ \
-				motionContainer.x = event.xmotion.x_root - motionContainer.pointerOffsetX; \
-			} \
-			if((int)motionContainer.height <= (int)innerBorders){ \
-				motionContainer.height = innerBorders + 1; \
-			}else{ \
-				motionContainer.pointerOffsetY = event.xmotion.y_root - motionContainer.y; \
-			} \
-			XMoveResizeWindow(display, motionContainer.window, motionContainer.x + motionContainer.positionOffset, motionContainer.y + motionContainer.positionOffset, motionContainer.width, motionContainer.height); \
-		}else if(motionContainer.subaction == DownRightResizeMotionSubaction){ \
-			motionContainer.width += event.xmotion.x_root - motionContainer.x - motionContainer.pointerOffsetX; \
-			motionContainer.height += event.xmotion.y_root - motionContainer.y - motionContainer.pointerOffsetY; \
-			if((int)motionContainer.width <= (int)innerBorders){ \
-				motionContainer.width = innerBorders + 1; \
-			}else{ \
-				 motionContainer.pointerOffsetX = event.xmotion.x_root - motionContainer.x; \
-			} \
-			if((int)motionContainer.height <= (int)innerBorders){ \
-				motionContainer.height = innerBorders + 1; \
-			}else{ \
-				motionContainer.pointerOffsetY = event.xmotion.y_root - motionContainer.y; \
-			} \
-			XResizeWindow(display, motionContainer.window, motionContainer.width, motionContainer.height); \
-		} \
-		if(!(option & FloatingMinimalResizeOption)){ \
-			XResizeWindow(display, motionContainer.subwindow, motionContainer.width - innerBorders, motionContainer.height - innerBorders); \
-		} \
-	} \
-	motionContainer.options ^= CanActOption; \
-}else{ \
-	if(!XPending(display)){ \
-		motionContainer.options |= CanActOption; \
-	} \
-}
-#define ENTERNOTIFY \
-for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
-	if(container[currentContainer].window == event.xcrossing.window){ \
-		if(!motionContainer.action){ \
-			XRaiseWindow(display, event.xcrossing.window); \
-			XSetInputFocus(display, container[currentContainer].subwindow, RevertToPointerRoot, CurrentTime); \
-\
-\
-\
-			/*XPeekEvent(display, &event); \
-			if(event.type == EnterNotify){ \
-				XNextEvent(display, &event); \
-			}*/ \
-\
-\
-\
-		} \
-		break; \
-	} \
-}
-#define UNMAPNOTIFY \
-for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
-	if(container[currentContainer].subwindow == event.xunmap.window){ \
-		unmapWindow:{ \
-			XUnmapWindow(display, container[currentContainer].window); \
-			XSetInputFocus(display, XDefaultRootWindow(display), RevertToPointerRoot, CurrentTime); \
-			clearWindowProperties(container[currentContainer].window); \
-			container[currentContainer].subwindow = None; \
-			--allocatedContainerAmount; \
-			unsigned int currentContainer1; \
-			const unsigned int containerAmount1 = containerAmount - 1; \
-			Window w; \
-			unsigned int lastCreatedWindowNumber = containerAmount; \
-			for(currentContainer = 0; currentContainer < containerAmount; ++currentContainer){ \
-				if(!container[currentContainer].subwindow){ \
-					for(currentContainer1 = currentContainer; currentContainer1 < containerAmount1; ++currentContainer1){ \
-						w = container[currentContainer1 + 1].window; \
-						container[currentContainer1 + 1].window = container[currentContainer1].window; \
-						container[currentContainer1].window = w; \
-						container[currentContainer1].subwindow = container[currentContainer1 + 1].subwindow; \
-					} \
-				}else{ \
-					lastCreatedWindowNumber = currentContainer; \
-				} \
-			} \
-			if(lastCreatedWindowNumber != containerAmount){ \
-				lastCreatedContainer.window = container[lastCreatedWindowNumber].window; \
-				lastCreatedContainer.option = container[lastCreatedWindowNumber].option; \
-			} \
-			if(allocatedContainerAmount == containerAmount - containerIncrementAmount - 1){ \
-				containerDirective = DecreaseContainerDirective; \
-				goto saveOpenClients; \
-			} \
-			break; \
-		} \
-	} \
-}
-#define CONFIGUREREQUEST \
-bool new = 1; \
-for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
-	if(container[currentContainer].subwindow == event.xconfigurerequest.window){ \
-		new = 0; \
-		break; \
-	} \
-} \
-if(new){ \
-	const XRRMonitorInfo monitorInfo = getPointerMonitorInfo(monitors, monitorAmount); \
-	XMoveResizeWindow(display, event.xconfigurerequest.window, monitorInfo.x, monitorInfo.y, monitorInfo.width / gridWidth - innerBorders, monitorInfo.height / gridHeight - innerBorders); \
-}else{ \
-	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
-		if(container[currentContainer].subwindow == event.xconfigurerequest.window){ \
-			XGetWindowAttributes(display, event.xconfigurerequest.window, &windowAttributes); \
-			if(event.xconfigurerequest.value_mask & CWX){ \
-				XMoveWindow(display, event.xconfigurerequest.window, event.xconfigurerequest.x, windowAttributes.y); \
-			} \
-			if(event.xconfigurerequest.value_mask & CWY){ \
-				XMoveWindow(display, event.xconfigurerequest.window, windowAttributes.x, event.xconfigurerequest.y); \
-			} \
-			if(event.xconfigurerequest.value_mask & CWWidth){ \
-				XResizeWindow(display, event.xconfigurerequest.window, event.xconfigurerequest.width, windowAttributes.height); \
-			} \
-			if(event.xconfigurerequest.value_mask & CWHeight){ \
-				XResizeWindow(display, event.xconfigurerequest.window, windowAttributes.width, event.xconfigurerequest.height); \
-			} \
-			if(event.xconfigurerequest.value_mask & CWBorderWidth){ \
-				XSetWindowBorderWidth(display, event.xconfigurerequest.window, event.xconfigurerequest.border_width); \
-			} \
-			XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
-			XMoveResizeWindow(display, event.xconfigurerequest.window, innerBorder, innerBorder, windowAttributes.width - innerBorders, windowAttributes.height - innerBorders); \
-			break; \
-		} \
-	} \
-}
 #define SYSTEM_KEYPRESS \
 system:{ \
 	\
@@ -922,13 +690,16 @@ system:{ \
 #define FLOATINGMODE_KEYPRESS \
 changeToFloatingMode:{ \
 	if(managementMode != FloatingManagementMode){ \
-		if(mappedSeparatorAmount){ \
-			unsigned int currentSeparator = 0; \
-			do{ \
+		if(separatorsExist){ \
+			unsigned int currentSeparator; \
+			for(currentSeparator = 0; currentSeparator < mappedSeparatorAmount; ++currentSeparator){ \
 				XUnmapWindow(display, separator[currentSeparator]); \
-				++currentSeparator; \
-			}while(currentSeparator < mappedSeparatorAmount); \
+			} \
+			for(currentSeparator = 0; currentSeparator < separatorAmount; ++currentSeparator){ \
+				XDestroyWindow(display, separator[currentSeparator]); \
+			} \
 			mappedSeparatorAmount = 0; \
+			separatorsExist = 0; \
 		} \
 		if(allocatedContainerAmount){ \
 			{ \
@@ -1009,13 +780,16 @@ changeToFloatingMode:{ \
 #define GRIDINGMODE_KEYPRESS \
 changeToGridingMode:{ \
 	if(managementMode != GridingManagementMode){ \
-		if(mappedSeparatorAmount){ \
-			unsigned int currentSeparator = 0; \
-			do{ \
+		if(separatorsExist){ \
+			unsigned int currentSeparator; \
+			for(currentSeparator = 0; currentSeparator < mappedSeparatorAmount; ++currentSeparator){ \
 				XUnmapWindow(display, separator[currentSeparator]); \
-				++currentSeparator; \
-			}while(currentSeparator < mappedSeparatorAmount); \
+			} \
+			for(currentSeparator = 0; currentSeparator < separatorAmount; ++currentSeparator){ \
+				XDestroyWindow(display, separator[currentSeparator]); \
+			} \
 			mappedSeparatorAmount = 0; \
+			separatorsExist = 0; \
 		} \
 		if(allocatedContainerAmount){ \
 			XRRMonitorInfo monitorInfo; \
@@ -1076,11 +850,9 @@ changeToTilingMode:{ \
 				.border_pixel = separatorBorderColor, \
 				.colormap = XCreateColormap(display, rootWindow, visualInfo.visual, AllocNone) \
 			}; \
-			--containerAmount; \
-			for(currentSeparator = 0; currentSeparator < containerAmount; ++currentSeparator){ \
+			for(currentSeparator = 0; currentSeparator < separatorAmount; ++currentSeparator){ \
 				separator[currentSeparator] = XCreateWindow(display, rootWindow, 0, 0, 1, 1, separatorBorder, visualInfo.depth, InputOutput, visualInfo.visual, windowAttributesMasks, &windowAttributes); \
 			} \
-			++containerAmount; \
 			currentSeparator = 0; \
 			separatorsExist = 1; \
 		} \
@@ -1092,22 +864,39 @@ changeToTilingMode:{ \
 			unsigned int middleX; \
 			int x; \
 			int y; \
-			unsigned int width; \
+			unsigned int separatorAmount; \
+			unsigned int reservedSpace; \
+			unsigned int normalWidth; \
 			unsigned int abnormalWidth; \
 			unsigned int height; \
-			unsigned int separatorAmount; \
-			const unsigned int totalSeparatorWidth = separatorWidth + 2 * separatorBorder; \
+			unsigned int subwindowAbnormalWidth; \
+			unsigned int subwindowHeight; \
+			unsigned int abnormalWidthGaps; \
+			unsigned int subwindowNormalWidth; \
+			unsigned int normalWidthGaps; \
+			unsigned int separatorHeight; \
+			const unsigned int totalSeparatorWidth = separatorWidth + separatorBorders; \
+			const unsigned int totalSeparatorWidthGaps = totalSeparatorWidth + tilingGapsX; \
 			if(pointerInfo & ChangeToTilingPointerInfo){ \
 				monitorInfo = getPointerMonitorInfo(monitors, monitorAmount); \
 				middleX = allocatedContainerAmount / 2; \
-				x = monitorInfo.x; \
-				y = monitorInfo.y; \
+				x = monitorInfo.x + tilingGapsX; \
+				y = monitorInfo.y + tilingGapsY; \
 				separatorAmount = allocatedContainerAmount - 1; \
-				width = monitorInfo.width - separatorAmount * totalSeparatorWidth; \
-				abnormalWidth = width; \
-				width /= allocatedContainerAmount; \
-				abnormalWidth -= width * separatorAmount; \
-				height = monitorInfo.height; \
+				if(option & TilingUseSeparatorsOption){ \
+					reservedSpace = 2 * allocatedContainerAmount * tilingGapsX + (allocatedContainerAmount - 1) * totalSeparatorWidth; \
+				}else{ \
+					reservedSpace = (allocatedContainerAmount + 1) * tilingGapsX; \
+				} \
+				normalWidth = (monitorInfo.width - reservedSpace) / allocatedContainerAmount; \
+				abnormalWidth = (monitorInfo.width - reservedSpace) - (allocatedContainerAmount - 1) * normalWidth; \
+				height = monitorInfo.height - 2 * tilingGapsY; \
+				subwindowAbnormalWidth = normalWidth - innerBorders; \
+				subwindowHeight = height - innerBorders; \
+				abnormalWidthGaps = abnormalWidth + tilingGapsX; \
+				subwindowNormalWidth = abnormalWidth - innerBorders; \
+				normalWidthGaps = normalWidth + tilingGapsX; \
+				separatorHeight = height - separatorBorders; \
 				for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
 					window = container[currentContainer].window; \
 					subwindow = container[currentContainer].subwindow; \
@@ -1122,19 +911,19 @@ changeToTilingMode:{ \
 					XMapWindow(display, window); \
 					if(currentContainer == middleX){ \
 						XMoveResizeWindow(display, window, x, y, abnormalWidth, height); \
-						XResizeWindow(display, subwindow, abnormalWidth - innerBorders, height - innerBorders); \
-						x += abnormalWidth; \
+						XResizeWindow(display, subwindow, subwindowAbnormalWidth, subwindowHeight); \
+						x += abnormalWidthGaps; \
 					}else{ \
-						XMoveResizeWindow(display, window, x, y, width, height); \
-						XResizeWindow(display, subwindow, width - innerBorders, height - innerBorders); \
-						x += width; \
+						XMoveResizeWindow(display, window, x, y, normalWidth, height); \
+						XResizeWindow(display, subwindow, subwindowNormalWidth, subwindowHeight); \
+						x += normalWidthGaps; \
 					} \
-					if(currentContainer < separatorAmount){ \
-						XMoveResizeWindow(display, separator[currentSeparator], x, y, separatorWidth, height); \
+					if(option & TilingUseSeparatorsOption && currentContainer < separatorAmount){ \
+						XMoveResizeWindow(display, separator[currentSeparator], x, y, separatorWidth, separatorHeight); \
 						XMapWindow(display, separator[currentSeparator]); \
 						++mappedSeparatorAmount; \
 						++currentSeparator; \
-						x += totalSeparatorWidth; \
+						x += totalSeparatorWidthGaps; \
 					} \
 				} \
 			}else{ \
@@ -1148,49 +937,58 @@ changeToTilingMode:{ \
 							++windowsAssigned; \
 						} \
 					} \
-					x = monitors[currentMonitor].x; \
-					y = monitors[currentMonitor].y; \
-					separatorAmount = windowsAssigned - 1; \
-					currentMonitorContainer = 0; \
-					middleX = windowsAssigned / 2; \
-					width = monitors[currentMonitor].width - separatorAmount * totalSeparatorWidth; \
-					abnormalWidth = width; \
 					if(windowsAssigned){ \
-						width /= windowsAssigned; \
-					} \
-					abnormalWidth -= width * separatorAmount; \
-					height = monitors[currentMonitor].height; \
-					for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
-						monitorInfo = getWindowMonitorInfo(container[currentContainer].window, monitors, monitorAmount); \
-						if(monitorCompare(monitorInfo, monitors[currentMonitor])){ \
-							window = container[currentContainer].window; \
-							subwindow = container[currentContainer].subwindow; \
-							if(!(container[currentContainer].option & InGridContainerOption)){ \
-								XSelectInput(display, window, windowMasks); \
-								XSelectInput(display, subwindow, StructureNotifyMask); \
-								XSetWindowBorderWidth(display, window, 0); \
-								container[currentContainer].option |= InGridContainerOption; \
+						currentMonitorContainer = 0; \
+						middleX = windowsAssigned / 2; \
+						x = monitors[currentMonitor].x + tilingGapsX; \
+						y = monitors[currentMonitor].y + tilingGapsY; \
+						separatorAmount = windowsAssigned - 1; \
+						if(option & TilingUseSeparatorsOption){ \
+							reservedSpace = 2 * windowsAssigned * tilingGapsX + separatorAmount * totalSeparatorWidth; \
+						}else{ \
+							reservedSpace = (windowsAssigned + 1) * tilingGapsX; \
+						} \
+						normalWidth = (monitors[currentMonitor].width - reservedSpace) / windowsAssigned; \
+						abnormalWidth = (monitors[currentMonitor].width - reservedSpace) - separatorAmount * normalWidth; \
+						height = monitors[currentMonitor].height - 2 * tilingGapsY; \
+						subwindowAbnormalWidth = normalWidth - innerBorders; \
+						subwindowHeight = height - innerBorders; \
+						abnormalWidthGaps = abnormalWidth + tilingGapsX; \
+						subwindowNormalWidth = abnormalWidth - innerBorders; \
+						normalWidthGaps = normalWidth + tilingGapsX; \
+						separatorHeight = height - separatorBorders; \
+						for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+							monitorInfo = getWindowMonitorInfo(container[currentContainer].window, monitors, monitorAmount); \
+							if(monitorCompare(monitorInfo, monitors[currentMonitor])){ \
+								window = container[currentContainer].window; \
+								subwindow = container[currentContainer].subwindow; \
+								if(!(container[currentContainer].option & InGridContainerOption)){ \
+									XSelectInput(display, window, windowMasks); \
+									XSelectInput(display, subwindow, StructureNotifyMask); \
+									XSetWindowBorderWidth(display, window, 0); \
+									container[currentContainer].option |= InGridContainerOption; \
+								} \
+								XSetWindowBackground(display, window, tilingContainerBackgroundColor); \
+								XUnmapWindow(display, window); \
+								XMapWindow(display, window); \
+								if(currentMonitorContainer == middleX){ \
+									XMoveResizeWindow(display, window, x, y, abnormalWidth, height); \
+									XResizeWindow(display, subwindow, subwindowAbnormalWidth, subwindowHeight); \
+									x += abnormalWidthGaps; \
+								}else{ \
+									XMoveResizeWindow(display, window, x, y, normalWidth, height); \
+									XResizeWindow(display, subwindow, subwindowNormalWidth, subwindowHeight); \
+									x += normalWidthGaps; \
+								} \
+								if(option & TilingUseSeparatorsOption && currentMonitorContainer < separatorAmount){ \
+									XMoveResizeWindow(display, separator[currentSeparator], x, y, separatorWidth, separatorHeight); \
+									XMapWindow(display, separator[currentSeparator]); \
+									++mappedSeparatorAmount; \
+									++currentSeparator; \
+									x += totalSeparatorWidthGaps; \
+								} \
+								++currentMonitorContainer; \
 							} \
-							XSetWindowBackground(display, window, tilingContainerBackgroundColor); \
-							XUnmapWindow(display, window); \
-							XMapWindow(display, window); \
-							if(currentMonitorContainer == middleX){ \
-								XMoveResizeWindow(display, window, x, y, abnormalWidth, height); \
-								XResizeWindow(display, subwindow, abnormalWidth - innerBorders, height - innerBorders); \
-								x += abnormalWidth; \
-							}else{ \
-								XMoveResizeWindow(display, window, x, y, width, height); \
-								XResizeWindow(display, subwindow, width - innerBorders, height - innerBorders); \
-								x += width; \
-							} \
-							if(currentMonitorContainer < separatorAmount){ \
-								XMoveResizeWindow(display, separator[currentSeparator], x, y, separatorWidth, height); \
-								XMapWindow(display, separator[currentSeparator]); \
-								++mappedSeparatorAmount; \
-								++currentSeparator; \
-								x += totalSeparatorWidth; \
-							} \
-							++currentMonitorContainer; \
 						} \
 					} \
 				} \
@@ -1222,17 +1020,25 @@ showGrid:{ \
 }
 #define ENLARGEGRID_KEYPRESS \
 englargeGrid:{ \
-	if(gridWidth < maxGridWidth && gridHeight < maxGridHeight){ \
-		++gridWidth; \
-		++gridHeight; \
+	if(gridWidth < maxGridWidth || gridHeight < maxGridHeight){ \
+		if(gridWidth < maxGridWidth){ \
+			++gridWidth; \
+		} \
+		if(gridHeight < maxGridHeight){ \
+			++gridHeight; \
+		} \
 		goto deleteGrid; \
 	} \
 }
 #define SHRINKGRID_KEYPRESS \
 shrinkGrid:{ \
-	if(gridWidth > 1 && gridHeight > 1){ \
-		--gridWidth; \
-		--gridHeight; \
+	if(gridWidth > 1 || gridHeight > 1){ \
+		if(gridWidth > 1){ \
+			--gridWidth; \
+		} \
+		if(gridHeight > 1){ \
+			--gridHeight; \
+		} \
 		deleteGrid:{ \
 			if(gridExists){ \
 				{ \
@@ -1392,9 +1198,21 @@ move:{ \
 					XSelectInput(display, XDefaultRootWindow(display), ButtonReleaseMask | ButtonMotionMask | SubstructureRedirectMask); \
 					XGetWindowAttributes(display, event.xany.window, &windowAttributes); \
 					if(event.xbutton.subwindow){ \
-						motionContainer.window = event.xany.window; \
-						motionContainer.x = windowAttributes.x; \
-						motionContainer.y = windowAttributes.y; \
+						if(option & FloatingMinimalMoveOption){ \
+							motionContainer.x = windowAttributes.x + border - moveResizeWindowBorder; \
+							motionContainer.y = windowAttributes.y + border - moveResizeWindowBorder; \
+							XMoveResizeWindow(display, moveResizeWindow, motionContainer.x, motionContainer.y, windowAttributes.width, windowAttributes.height); \
+							XMapRaised(display, moveResizeWindow); \
+							motionContainer.window = moveResizeWindow; \
+							moveResizeWindow = event.xany.window; \
+							const unsigned int b = border; \
+							border = moveResizeWindowBorder; \
+							moveResizeWindowBorder = b; \
+						}else{ \
+							motionContainer.window = event.xany.window; \
+							motionContainer.x = windowAttributes.x; \
+							motionContainer.y = windowAttributes.y; \
+						} \
 						motionContainer.width = windowAttributes.width; \
 						motionContainer.height = windowAttributes.height; \
 						motionContainer.pointerOffsetX = event.xbutton.x + border; \
@@ -1404,23 +1222,25 @@ move:{ \
 						motionContainer.subwindow = container[currentContainer].subwindow; \
 						if(option & FloatingMinimalResizeOption){ \
 							XSelectInput(display, motionContainer.subwindow, ButtonReleaseMask | ButtonMotionMask | StructureNotifyMask); \
-							motionContainer.x = windowAttributes.x - resizeWindowBorder + innerBorder; \
-							motionContainer.y = windowAttributes.y - resizeWindowBorder + innerBorder; \
-							motionContainer.width = windowAttributes.width - innerBorders; \
-							motionContainer.height = windowAttributes.height - innerBorders; \
-							XMoveResizeWindow(display, resizeWindow, motionContainer.x + border, motionContainer.y + border, motionContainer.width, motionContainer.height); \
-							XMapRaised(display, resizeWindow); \
-							motionContainer.window = resizeWindow; \
-							resizeWindow = event.xany.window; \
-							motionContainer.pointerOffsetX = event.xbutton.x + border + resizeWindowBorder - innerBorder; \
-							motionContainer.pointerOffsetY = event.xbutton.y + border + resizeWindowBorder - innerBorder; \
+							motionContainer.x = windowAttributes.x - moveResizeWindowBorder; \
+							motionContainer.y = windowAttributes.y - moveResizeWindowBorder; \
+							XMoveResizeWindow(display, moveResizeWindow, motionContainer.x + border, motionContainer.y + border, windowAttributes.width, windowAttributes.height); \
+							XMapRaised(display, moveResizeWindow); \
+							motionContainer.window = moveResizeWindow; \
+							moveResizeWindow = event.xany.window; \
+							motionContainer.pointerOffsetX = event.xbutton.x + border + moveResizeWindowBorder; \
+							motionContainer.pointerOffsetY = event.xbutton.y + border + moveResizeWindowBorder; \
 							motionContainer.positionOffset = border; \
 						}else{ \
 							motionContainer.window = event.xany.window; \
+							motionContainer.x = windowAttributes.x; \
+							motionContainer.y = windowAttributes.y; \
 							motionContainer.pointerOffsetX = event.xbutton.x + border; \
 							motionContainer.pointerOffsetY = event.xbutton.y + border; \
 							motionContainer.positionOffset = 0; \
 						} \
+						motionContainer.width = windowAttributes.width; \
+						motionContainer.height = windowAttributes.height; \
 						motionContainer.action = ResizeMotionAction; \
 						if(event.xbutton.y < (int)innerBorder){ \
 							if(event.xbutton.x < (int)innerBorder){ \
@@ -2313,8 +2133,8 @@ extendWindowUp:{ \
 				y += monitorInfo.y; \
 				height += windowAttributes.height; \
 			}else{ \
-				y = windowAttributes.y - extendHeight; \
-				height = windowAttributes.height + extendHeight; \
+				y = windowAttributes.y - floatingExtendHeight; \
+				height = windowAttributes.height + floatingExtendHeight; \
 			} \
 			XMoveResizeWindow(display, event.xany.window, windowAttributes.x, y, windowAttributes.width, height); \
 			XResizeWindow(display, container[currentContainer].subwindow, windowAttributes.width - innerBorders, height - innerBorders); \
@@ -2336,7 +2156,7 @@ extendWindowDown:{ \
 				++container[currentContainer].gridHeight; \
 				height += windowAttributes.height; \
 			}else{ \
-				height = windowAttributes.height + extendHeight; \
+				height = windowAttributes.height + floatingExtendHeight; \
 			} \
 			XResizeWindow(display, event.xany.window, windowAttributes.width, height); \
 			XResizeWindow(display, container[currentContainer].subwindow, windowAttributes.width - innerBorders, height - innerBorders); \
@@ -2361,8 +2181,8 @@ extendWindowLeft:{ \
 				x += monitorInfo.x; \
 				width += windowAttributes.width; \
 			}else{ \
-				x = windowAttributes.x - extendWidth; \
-				width = windowAttributes.width + extendWidth; \
+				x = windowAttributes.x - floatingExtendWidth; \
+				width = windowAttributes.width + floatingExtendWidth; \
 			} \
 			XMoveResizeWindow(display, event.xany.window, x, windowAttributes.y, width, windowAttributes.height); \
 			XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, windowAttributes.height - innerBorders); \
@@ -2384,7 +2204,7 @@ extendWindowRight:{ \
 				++container[currentContainer].gridWidth; \
 				width += windowAttributes.width; \
 			}else{ \
-				width = windowAttributes.width + extendWidth; \
+				width = windowAttributes.width + floatingExtendWidth; \
 			} \
 			XResizeWindow(display, event.xany.window, width, windowAttributes.height); \
 			XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, windowAttributes.height - innerBorders); \
@@ -2426,10 +2246,10 @@ extendWindowUpLeft:{ \
 					break; \
 				} \
 			}else{ \
-				x = windowAttributes.x - extendWidth; \
-				y = windowAttributes.y - extendHeight; \
-				width = windowAttributes.width + extendHeight; \
-				height = windowAttributes.height + extendHeight; \
+				x = windowAttributes.x - floatingExtendWidth; \
+				y = windowAttributes.y - floatingExtendHeight; \
+				width = windowAttributes.width + floatingExtendWidth; \
+				height = windowAttributes.height + floatingExtendHeight; \
 			} \
 			XMoveResizeWindow(display, event.xany.window, x, y, width, height); \
 			XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
@@ -2467,9 +2287,9 @@ extendWindowUpRight:{ \
 					break; \
 				} \
 			}else{ \
-				y = windowAttributes.y - extendHeight; \
-				width = windowAttributes.width + extendHeight; \
-				height = windowAttributes.height + extendHeight; \
+				y = windowAttributes.y - floatingExtendHeight; \
+				width = windowAttributes.width + floatingExtendWidth; \
+				height = windowAttributes.height + floatingExtendHeight; \
 			} \
 			XMoveResizeWindow(display, event.xany.window, windowAttributes.x, y, width, height); \
 			XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
@@ -2507,9 +2327,9 @@ extendWindowDownLeft:{ \
 					break; \
 				} \
 			}else{ \
-				x = windowAttributes.x - extendWidth; \
-				width = windowAttributes.width + extendHeight; \
-				height = windowAttributes.height + extendHeight; \
+				x = windowAttributes.x - floatingExtendWidth; \
+				width = windowAttributes.width + floatingExtendWidth; \
+				height = windowAttributes.height + floatingExtendHeight; \
 			} \
 			XMoveResizeWindow(display, event.xany.window, x, windowAttributes.y, width, height); \
 			XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
@@ -2543,8 +2363,8 @@ extendWindowDownRight:{ \
 					break; \
 				} \
 			}else{ \
-				width = windowAttributes.width + extendHeight; \
-				height = windowAttributes.height + extendHeight; \
+				width = windowAttributes.width + floatingExtendWidth; \
+				height = windowAttributes.height + floatingExtendHeight; \
 			} \
 			XResizeWindow(display, event.xany.window, width, height); \
 			XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
@@ -2565,7 +2385,7 @@ shrinkWindowUp:{ \
 				getGridSlotData(getWindowMonitorInfo(container[currentContainer].window, monitors, monitorAmount), container[currentContainer].gridX, container[currentContainer].gridY + --container[currentContainer].gridHeight, gridWidth, gridHeight, NULL, NULL, NULL, &height); \
 				height = windowAttributes.height - height; \
 			}else{ \
-				height = windowAttributes.height - shrinkHeight; \
+				height = windowAttributes.height - floatingShrinkHeight; \
 			} \
 			XResizeWindow(display, event.xany.window, windowAttributes.width, height); \
 			XResizeWindow(display, container[currentContainer].subwindow, windowAttributes.width - innerBorders, height - innerBorders); \
@@ -2590,8 +2410,8 @@ shrinkWindowDown:{ \
 				y = windowAttributes.y + height; \
 				height = windowAttributes.height - height; \
 			}else{ \
-				y = windowAttributes.y + shrinkHeight; \
-				height = windowAttributes.height - shrinkHeight; \
+				y = windowAttributes.y + floatingShrinkHeight; \
+				height = windowAttributes.height - floatingShrinkHeight; \
 			} \
 			XMoveResizeWindow(display, event.xany.window, windowAttributes.x, y, windowAttributes.width, height); \
 			XResizeWindow(display, container[currentContainer].subwindow, windowAttributes.width - innerBorders, height - innerBorders); \
@@ -2612,7 +2432,7 @@ shrinkWindowLeft:{ \
 				getGridSlotData(getWindowMonitorInfo(container[currentContainer].window, monitors, monitorAmount), container[currentContainer].gridX + --container[currentContainer].gridWidth, container[currentContainer].gridY, gridWidth, gridHeight, NULL, NULL, &width, NULL); \
 				width = windowAttributes.width - width; \
 			}else{ \
-				width = windowAttributes.width - shrinkHeight; \
+				width = windowAttributes.width - floatingShrinkWidth; \
 			} \
 			XResizeWindow(display, event.xany.window, width, windowAttributes.height); \
 			XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, windowAttributes.height - innerBorders); \
@@ -2637,8 +2457,8 @@ shrinkWindowRight:{ \
 				x = windowAttributes.x + width; \
 				width = windowAttributes.width - width; \
 			}else{ \
-				x = windowAttributes.x + shrinkWidth; \
-				width = windowAttributes.width - shrinkWidth; \
+				x = windowAttributes.x + floatingShrinkWidth; \
+				width = windowAttributes.width - floatingShrinkWidth; \
 			} \
 			XMoveResizeWindow(display, event.xany.window, x, windowAttributes.y, width, windowAttributes.height); \
 			XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, windowAttributes.height - innerBorders); \
@@ -2670,8 +2490,8 @@ shrinkWindowUpLeft:{ \
 					break; \
 				} \
 			}else{ \
-				width = windowAttributes.width - shrinkWidth; \
-				height = windowAttributes.height - shrinkHeight; \
+				width = windowAttributes.width - floatingShrinkWidth; \
+				height = windowAttributes.height - floatingShrinkHeight; \
 			} \
 			XResizeWindow(display, event.xany.window, width, height); \
 			XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
@@ -2708,9 +2528,9 @@ shrinkWindowUpRight:{ \
 					break; \
 				} \
 			}else{ \
-				x = windowAttributes.x + shrinkWidth; \
-				width = windowAttributes.width - shrinkWidth; \
-				height = windowAttributes.height - shrinkHeight; \
+				x = windowAttributes.x + floatingShrinkWidth; \
+				width = windowAttributes.width - floatingShrinkWidth; \
+				height = windowAttributes.height - floatingShrinkHeight; \
 			} \
 			XMoveResizeWindow(display, event.xany.window, x, windowAttributes.y, width, height); \
 			XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
@@ -2747,9 +2567,9 @@ shrinkWindowDownLeft:{ \
 					break; \
 				} \
 			}else{ \
-				y = windowAttributes.y + shrinkHeight; \
-				width = windowAttributes.width - shrinkWidth; \
-				height = windowAttributes.height - shrinkHeight; \
+				y = windowAttributes.y + floatingShrinkHeight; \
+				width = windowAttributes.width - floatingShrinkWidth; \
+				height = windowAttributes.height - floatingShrinkHeight; \
 			} \
 			XMoveResizeWindow(display, event.xany.window, windowAttributes.x, y, width, height); \
 			XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
@@ -2791,10 +2611,10 @@ shrinkWindowDownRight:{ \
 					break; \
 				} \
 			}else{ \
-				x = windowAttributes.x + shrinkWidth; \
-				y = windowAttributes.y + shrinkHeight; \
-				width = windowAttributes.width - shrinkWidth; \
-				height = windowAttributes.height - shrinkHeight; \
+				x = windowAttributes.x + floatingShrinkWidth; \
+				y = windowAttributes.y + floatingShrinkHeight; \
+				width = windowAttributes.width - floatingShrinkWidth; \
+				height = windowAttributes.height - floatingShrinkHeight; \
 			} \
 			XMoveResizeWindow(display, event.xany.window, x, y, width, height); \
 			XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, height - innerBorders); \
@@ -2989,5 +2809,465 @@ kill:{ \
 			goto unmapWindow; \
 		} \
 	} \
+}
+#define BUTTONRELEASE \
+if(motionContainer.action){ \
+	XSelectInput(display, XDefaultRootWindow(display), SubstructureRedirectMask); \
+	if(option & FloatingMinimalMoveOption && motionContainer.action == MoveMotionAction){ \
+		XUnmapWindow(display, motionContainer.window); \
+		{ \
+			const Window w = motionContainer.window; \
+			motionContainer.window = moveResizeWindow; \
+			moveResizeWindow = w; \
+		} \
+		{ \
+			const unsigned int b = border; \
+			border = moveResizeWindowBorder; \
+			moveResizeWindowBorder = b; \
+		} \
+		XMoveWindow(display, motionContainer.window, motionContainer.x + moveResizeWindowBorder - border - motionContainer.positionOffset, motionContainer.y + moveResizeWindowBorder - border - motionContainer.positionOffset); \
+	}else if(option & FloatingMinimalResizeOption && motionContainer.action == ResizeMotionAction){ \
+		XUnmapWindow(display, motionContainer.window); \
+		{ \
+			const Window w = motionContainer.window; \
+			motionContainer.window = moveResizeWindow; \
+			moveResizeWindow = w; \
+		} \
+		XMoveResizeWindow(display, motionContainer.window, motionContainer.x + motionContainer.positionOffset + moveResizeWindowBorder - border, motionContainer.y + motionContainer.positionOffset + moveResizeWindowBorder - border, motionContainer.width, motionContainer.height); \
+		XResizeWindow(display, motionContainer.subwindow, motionContainer.width - innerBorders, motionContainer.height - innerBorders); \
+		XSelectInput(display, motionContainer.subwindow, ButtonMotionMask | StructureNotifyMask); \
+	} \
+	motionContainer.options = NoMotionOptions; \
+	motionContainer.action = NoMotionAction; \
+}
+#define MOTIONNOTIFY \
+if(motionContainer.options & CanActOption){ \
+	if(motionContainer.action == MoveMotionAction){ \
+		if(option & FloatingAllowStickingOption){ \
+			const XRRMonitorInfo monitorInfo = getWindowMonitorInfo(motionContainer.window, monitors, monitorAmount); \
+			if(motionContainer.x + (int)border >= monitorInfo.x && motionContainer.x + (int)border <= monitorInfo.x + floatingStickyThresholdX){ \
+				if(!(motionContainer.options & HasLockedXOption)){ \
+					motionContainer.x = monitorInfo.x - border; \
+					XMoveWindow(display, motionContainer.window, motionContainer.x, motionContainer.y); \
+					motionContainer.movementBorderX = event.xmotion.x_root + floatingDistanceToTravelX; \
+					motionContainer.options |= HasLockedXOption; \
+				}else{ \
+					if(event.xmotion.x_root >= motionContainer.movementBorderX){ \
+						motionContainer.options ^= HasLockedXOption; \
+					} \
+				} \
+			}else if(motionContainer.x + (int)(motionContainer.width + border) >= monitorInfo.x + monitorInfo.width && motionContainer.x + (int)(motionContainer.width + border) <= monitorInfo.x + monitorInfo.width + floatingStickyThresholdX){ \
+				if(!(motionContainer.options & HasLockedXOption)){ \
+					motionContainer.x = monitorInfo.x + monitorInfo.width - motionContainer.width - border; \
+					XMoveWindow(display, motionContainer.window, motionContainer.x, motionContainer.y); \
+					motionContainer.movementBorderX = event.xmotion.x_root - floatingDistanceToTravelX; \
+					motionContainer.options |= HasLockedXOption; \
+				}else{ \
+					if(event.xmotion.x_root <= motionContainer.movementBorderX){ \
+						motionContainer.options ^= HasLockedXOption; \
+					} \
+				} \
+			} \
+			if(motionContainer.y + (int)border >= monitorInfo.y && motionContainer.y + (int)border <= monitorInfo.y + floatingStickyThresholdY){ \
+				if(!(motionContainer.options & HasLockedYOption)){ \
+					motionContainer.y = monitorInfo.y - border; \
+					XMoveWindow(display, motionContainer.window, motionContainer.x, motionContainer.y); \
+					motionContainer.movementBorderY = event.xmotion.y_root + floatingDistanceToTravelY; \
+					motionContainer.options |= HasLockedYOption; \
+				}else{ \
+					if(event.xmotion.y_root >= motionContainer.movementBorderY){ \
+						motionContainer.options ^= HasLockedYOption; \
+					} \
+				} \
+			}else if(motionContainer.y + (int)(motionContainer.height + border) >= monitorInfo.y + monitorInfo.height && motionContainer.y + (int)(motionContainer.height + border) <= monitorInfo.y + monitorInfo.height + floatingStickyThresholdY){ \
+				if(!(motionContainer.options & HasLockedYOption)){ \
+					motionContainer.y = monitorInfo.y + monitorInfo.height - motionContainer.height - border; \
+					XMoveWindow(display, motionContainer.window, motionContainer.x, motionContainer.y); \
+					motionContainer.movementBorderY = event.xmotion.y_root - floatingDistanceToTravelY; \
+					motionContainer.options |= HasLockedYOption; \
+				}else{ \
+					if(event.xmotion.y_root <= motionContainer.movementBorderY){ \
+						motionContainer.options ^= HasLockedYOption; \
+					} \
+				} \
+			} \
+			if(!(motionContainer.options & HasLockedXOption) || !(motionContainer.options & HasLockedYOption)){ \
+				if(!(motionContainer.options & HasLockedXOption)){ \
+					motionContainer.x = event.xmotion.x_root - motionContainer.pointerOffsetX; \
+				} \
+				if(!(motionContainer.options & HasLockedYOption)){ \
+					motionContainer.y = event.xmotion.y_root - motionContainer.pointerOffsetY; \
+				} \
+				XMoveWindow(display, motionContainer.window, motionContainer.x, motionContainer.y); \
+			} \
+		}else{ \
+			XMoveWindow(display, motionContainer.window, event.xmotion.x_root - motionContainer.pointerOffsetX, event.xmotion.y_root - motionContainer.pointerOffsetY); \
+		} \
+	}else if(motionContainer.action == ResizeMotionAction){ \
+		if(motionContainer.subaction == UpResizeMotionSubaction){ \
+			motionContainer.height += motionContainer.pointerOffsetY + motionContainer.y - event.xmotion.y_root; \
+			if((int)motionContainer.height <= (int)innerBorders){ \
+				motionContainer.height = innerBorders + 1; \
+			}else{ \
+				motionContainer.y = event.xmotion.y_root - motionContainer.pointerOffsetY; \
+			} \
+			XMoveResizeWindow(display, motionContainer.window, motionContainer.x + motionContainer.positionOffset, motionContainer.y + motionContainer.positionOffset, motionContainer.width, motionContainer.height); \
+		}else if(motionContainer.subaction == DownResizeMotionSubaction){ \
+			motionContainer.height -= motionContainer.pointerOffsetY + motionContainer.y - event.xmotion.y_root; \
+			if((int)motionContainer.height <= (int)innerBorders){ \
+				motionContainer.height = innerBorders + 1; \
+			}else{ \
+				motionContainer.pointerOffsetY = event.xmotion.y_root - motionContainer.y; \
+			} \
+			XResizeWindow(display, motionContainer.window, motionContainer.width, motionContainer.height); \
+		}else if(motionContainer.subaction == LeftResizeMotionSubaction){ \
+			motionContainer.width += motionContainer.pointerOffsetX + motionContainer.x - event.xmotion.x_root; \
+			if((int)motionContainer.width <= (int)innerBorders){ \
+				motionContainer.width = innerBorders + 1; \
+			}else{ \
+				motionContainer.x = event.xmotion.x_root - motionContainer.pointerOffsetX; \
+			} \
+			XMoveResizeWindow(display, motionContainer.window, motionContainer.x + motionContainer.positionOffset, motionContainer.y + motionContainer.positionOffset, motionContainer.width, motionContainer.height); \
+		}else if(motionContainer.subaction == RightResizeMotionSubaction){ \
+			motionContainer.width -= motionContainer.pointerOffsetX + motionContainer.x - event.xmotion.x_root; \
+			if((int)motionContainer.width <= (int)innerBorders){ \
+				motionContainer.width = innerBorders + 1; \
+			}else{ \
+				motionContainer.pointerOffsetX = event.xmotion.x_root - motionContainer.x; \
+			} \
+			XResizeWindow(display, motionContainer.window, motionContainer.width, motionContainer.height); \
+		}else if(motionContainer.subaction == UpLeftResizeMotionSubaction){ \
+			motionContainer.width += motionContainer.pointerOffsetX + motionContainer.x - event.xmotion.x_root; \
+			motionContainer.height += motionContainer.pointerOffsetY + motionContainer.y - event.xmotion.y_root; \
+			if((int)motionContainer.width <= (int)innerBorders){ \
+				motionContainer.width = innerBorders + 1; \
+			}else{ \
+				motionContainer.x = event.xmotion.x_root - motionContainer.pointerOffsetX; \
+			} \
+			if((int)motionContainer.height <= (int)innerBorders){ \
+				motionContainer.height = innerBorders + 1; \
+			}else{ \
+				motionContainer.y = event.xmotion.y_root - motionContainer.pointerOffsetY; \
+			} \
+			XMoveResizeWindow(display, motionContainer.window, motionContainer.x + motionContainer.positionOffset, motionContainer.y + motionContainer.positionOffset, motionContainer.width, motionContainer.height); \
+		}else if(motionContainer.subaction == UpRightResizeMotionSubaction){ \
+			motionContainer.width -= motionContainer.pointerOffsetX + motionContainer.x - event.xmotion.x_root; \
+			motionContainer.height += motionContainer.pointerOffsetY + motionContainer.y - event.xmotion.y_root; \
+			if((int)motionContainer.width <= (int)innerBorders){ \
+				motionContainer.width = innerBorders + 1; \
+			}else{ \
+				motionContainer.pointerOffsetX = event.xmotion.x_root - motionContainer.x; \
+			} \
+			if((int)motionContainer.height <= (int)innerBorders){ \
+				motionContainer.height = innerBorders + 1; \
+			}else{ \
+				motionContainer.y = event.xmotion.y_root - motionContainer.pointerOffsetY; \
+			} \
+			XMoveResizeWindow(display, motionContainer.window, motionContainer.x + motionContainer.positionOffset, motionContainer.y + motionContainer.positionOffset, motionContainer.width, motionContainer.height); \
+		}else if(motionContainer.subaction == DownLeftResizeMotionSubaction){ \
+			motionContainer.width += motionContainer.pointerOffsetX + motionContainer.x - event.xmotion.x_root; \
+			motionContainer.height -= motionContainer.pointerOffsetY + motionContainer.y - event.xmotion.y_root; \
+			if((int)motionContainer.width <= (int)innerBorders){ \
+				motionContainer.width = innerBorders + 1; \
+			}else{ \
+				motionContainer.x = event.xmotion.x_root - motionContainer.pointerOffsetX; \
+			} \
+			if((int)motionContainer.height <= (int)innerBorders){ \
+				motionContainer.height = innerBorders + 1; \
+			}else{ \
+				motionContainer.pointerOffsetY = event.xmotion.y_root - motionContainer.y; \
+			} \
+			XMoveResizeWindow(display, motionContainer.window, motionContainer.x + motionContainer.positionOffset, motionContainer.y + motionContainer.positionOffset, motionContainer.width, motionContainer.height); \
+		}else{ \
+			motionContainer.width += event.xmotion.x_root - motionContainer.x - motionContainer.pointerOffsetX; \
+			motionContainer.height += event.xmotion.y_root - motionContainer.y - motionContainer.pointerOffsetY; \
+			if((int)motionContainer.width <= (int)innerBorders){ \
+				motionContainer.width = innerBorders + 1; \
+			}else{ \
+				 motionContainer.pointerOffsetX = event.xmotion.x_root - motionContainer.x; \
+			} \
+			if((int)motionContainer.height <= (int)innerBorders){ \
+				motionContainer.height = innerBorders + 1; \
+			}else{ \
+				motionContainer.pointerOffsetY = event.xmotion.y_root - motionContainer.y; \
+			} \
+			XResizeWindow(display, motionContainer.window, motionContainer.width, motionContainer.height); \
+		} \
+		if(!(option & FloatingMinimalResizeOption)){ \
+			XResizeWindow(display, motionContainer.subwindow, motionContainer.width - innerBorders, motionContainer.height - innerBorders); \
+		} \
+	} \
+	motionContainer.options ^= CanActOption; \
+}else{ \
+	if(!XPending(display)){ \
+		motionContainer.options |= CanActOption; \
+	} \
+}
+#define ENTERNOTIFY \
+for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	if(container[currentContainer].window == event.xcrossing.window){ \
+		if(!motionContainer.action){ \
+			XRaiseWindow(display, event.xcrossing.window); \
+			XSetInputFocus(display, container[currentContainer].subwindow, RevertToPointerRoot, CurrentTime); \
+\
+\
+\
+			/*XPeekEvent(display, &event); \
+			if(event.type == EnterNotify){ \
+				XNextEvent(display, &event); \
+			}*/ \
+\
+\
+\
+		} \
+		break; \
+	} \
+}
+#define UNMAPNOTIFY \
+for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	if(container[currentContainer].subwindow == event.xunmap.window){ \
+		unmapWindow:{ \
+			XRRMonitorInfo monitorInfo; \
+			if(managementMode == TilingManagementMode){ \
+				monitorInfo = getWindowMonitorInfo(container[currentContainer].window, monitors, monitorAmount); \
+			} \
+			XUnmapWindow(display, container[currentContainer].window); \
+			XSetInputFocus(display, XDefaultRootWindow(display), RevertToPointerRoot, CurrentTime); \
+			clearWindowProperties(container[currentContainer].window); \
+			container[currentContainer].subwindow = None; \
+			--allocatedContainerAmount; \
+			unsigned int currentContainer1; \
+			const unsigned int containerAmount1 = containerAmount - 1; \
+			Window w; \
+			unsigned int lastCreatedWindowNumber = containerAmount; \
+			for(currentContainer = 0; currentContainer < containerAmount; ++currentContainer){ \
+				if(!container[currentContainer].subwindow){ \
+					for(currentContainer1 = currentContainer; currentContainer1 < containerAmount1; ++currentContainer1){ \
+						w = container[currentContainer1].window; \
+						container[currentContainer1] = container[currentContainer1 + 1]; \
+						container[currentContainer1 + 1].window = w; \
+					} \
+				}else{ \
+					lastCreatedWindowNumber = currentContainer; \
+				} \
+			} \
+			if(lastCreatedWindowNumber != containerAmount){ \
+				lastCreatedContainer.window = container[lastCreatedWindowNumber].window; \
+				lastCreatedContainer.option = container[lastCreatedWindowNumber].option; \
+			} \
+\
+\
+\
+\
+\
+\
+\
+\
+\
+			if(managementMode == TilingManagementMode){ \
+				bool containerInMonitorMap[allocatedContainerAmount + 1]; \
+				unsigned int monitorContainerAmount = 0; \
+				{ \
+					XRRMonitorInfo mi; \
+					for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+						mi = getWindowMonitorInfo(container[currentContainer].window, monitors, monitorAmount); \
+						if(monitorCompare(mi, monitorInfo)){ \
+							containerInMonitorMap[currentContainer] = 1; \
+							++monitorContainerAmount; \
+						}else{ \
+							containerInMonitorMap[currentContainer] = 0; \
+						} \
+					} \
+				} \
+				if(monitorContainerAmount){ \
+					containerInMonitorMap[allocatedContainerAmount] = 1; \
+					unsigned int normalWidth; \
+					unsigned int abnormalWidth; \
+					const unsigned int totalSeparatorWidth = separatorWidth + separatorBorders; \
+					{ \
+						unsigned int reservedSpace; \
+						if(option & TilingUseSeparatorsOption){ \
+							reservedSpace = 2 * monitorContainerAmount * tilingGapsX + (monitorContainerAmount - 1) * totalSeparatorWidth; \
+						}else{ \
+							reservedSpace = (monitorContainerAmount + 1) * tilingGapsX; \
+						} \
+						normalWidth = (monitorInfo.width - reservedSpace) / monitorContainerAmount; \
+						abnormalWidth = (monitorInfo.width - reservedSpace) - (monitorContainerAmount - 1) * normalWidth; \
+					} \
+					const unsigned int middleX = monitorContainerAmount / 2; \
+					unsigned int counter = 0; \
+					int x = monitorInfo.x + tilingGapsX; \
+					const int y = monitorInfo.y + tilingGapsY; \
+					unsigned int width = normalWidth; \
+					const unsigned int height = monitorInfo.height - 2 * tilingGapsY; \
+					unsigned int currentSeparator = 0; \
+					const unsigned int subwindowHeight = height - innerBorders; \
+					const unsigned int separatorHeight = height - separatorBorders; \
+					const unsigned int separatorWidthGaps = totalSeparatorWidth + tilingGapsX; \
+					for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+						if(containerInMonitorMap[currentContainer]){ \
+							XMoveResizeWindow(display, container[currentContainer].window, x, y, width, height); \
+							XResizeWindow(display, container[currentContainer].subwindow, width - innerBorders, subwindowHeight); \
+							if(++counter == monitorContainerAmount){ \
+								break; \
+							} \
+							x += width + tilingGapsX; \
+							if(option & TilingUseSeparatorsOption){ \
+								XMoveResizeWindow(display, separator[currentSeparator], x, y, separatorWidth, separatorHeight); \
+								if(currentSeparator >= mappedSeparatorAmount){ \
+									XMapWindow(display, separator[currentSeparator]); \
+									++mappedSeparatorAmount; \
+								} \
+								x += separatorWidthGaps; \
+								++currentSeparator; \
+							} \
+							if(counter == middleX){ \
+								width = abnormalWidth; \
+							}else{ \
+								width = normalWidth; \
+							} \
+						} \
+					} \
+				} \
+			} \
+\
+\
+\
+\
+\
+\
+\
+\
+\
+			if(allocatedContainerAmount == containerAmount - containerIncrementDecrementAmount - 1){ \
+				containerDirective = DecreaseContainerDirective; \
+				goto saveOpenClients; \
+			} \
+			break; \
+		} \
+	} \
+}
+#define CONFIGUREREQUEST \
+bool new = 1; \
+for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+	if(container[currentContainer].subwindow == event.xconfigurerequest.window){ \
+		XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes); \
+		if(canConfigurePosition){ \
+			if(!(container[currentContainer].option & InGridContainerOption)){ \
+				if((event.xconfigurerequest.value_mask & CWX || event.xconfigurerequest.value_mask & CWY)){ \
+					if(event.xconfigurerequest.value_mask & CWX){ \
+						windowAttributes.x += event.xconfigurerequest.x - windowAttributes.x - innerBorder; \
+					} \
+					if(event.xconfigurerequest.value_mask & CWY){ \
+						windowAttributes.y += event.xconfigurerequest.y - windowAttributes.y - innerBorder; \
+					} \
+					XMoveWindow(display, container[currentContainer].window, windowAttributes.x, windowAttributes.y); \
+				} \
+				canConfigurePosition = 0; \
+			} \
+		}else{ \
+			if(!XPending(display)){ \
+				canConfigurePosition = 1; \
+			} \
+		} \
+		{ \
+			XWindowChanges windowChanges; \
+			unsigned int masks = None; \
+			if(event.xconfigurerequest.value_mask & CWWidth){ \
+				windowChanges.width = event.xconfigurerequest.width; \
+				masks |= CWWidth; \
+			} \
+			if(event.xconfigurerequest.value_mask & CWHeight){ \
+				windowChanges.height = event.xconfigurerequest.height; \
+				masks |= CWHeight; \
+			} \
+			if(event.xconfigurerequest.value_mask & CWBorderWidth){ \
+				windowChanges.border_width = event.xconfigurerequest.border_width; \
+				windowAttributes.width -= event.xconfigurerequest.border_width; \
+				windowAttributes.height -= event.xconfigurerequest.border_width; \
+				masks |= CWBorderWidth; \
+			}else{ \
+				XWindowAttributes wa; \
+				XGetWindowAttributes(display, event.xconfigurerequest.window, &wa); \
+				windowAttributes.width -= wa.border_width; \
+				windowAttributes.height -= wa.border_width; \
+			} \
+			if(masks){ \
+				XConfigureWindow(display, event.xconfigurerequest.window, masks, &windowChanges); \
+				XResizeWindow(display, event.xconfigurerequest.window, windowAttributes.width - innerBorders, windowAttributes.height - innerBorders); \
+			} \
+		} \
+		new = 0; \
+		break; \
+	} \
+} \
+if(new){ \
+	const XRRMonitorInfo monitorInfo = getPointerMonitorInfo(monitors, monitorAmount); \
+	if(event.xconfigurerequest.value_mask){ \
+		XWindowChanges windowChanges; \
+		unsigned int masks = None; \
+		if(event.xconfigurerequest.value_mask & CWX){ \
+			windowChanges.x = event.xconfigurerequest.x; \
+			masks |= CWX; \
+		} \
+		if(event.xconfigurerequest.value_mask & CWY){ \
+			windowChanges.y = event.xconfigurerequest.y; \
+			masks |= CWY; \
+		} \
+		if(event.xconfigurerequest.value_mask & CWWidth){ \
+			windowChanges.width = event.xconfigurerequest.width; \
+			masks |= CWWidth; \
+		} \
+		if(event.xconfigurerequest.value_mask & CWHeight){ \
+			windowChanges.height = event.xconfigurerequest.height; \
+			masks |= CWHeight; \
+		} \
+		if(event.xconfigurerequest.value_mask & CWBorderWidth){ \
+			windowChanges.border_width = event.xconfigurerequest.border_width; \
+			windowChanges.width -= windowChanges.border_width; \
+			windowChanges.height -= windowChanges.border_width; \
+			masks |= CWBorderWidth; \
+		} \
+		if(masks){ \
+			XConfigureWindow(display, event.xconfigurerequest.window, masks, &windowChanges); \
+		} \
+	} \
+	XMoveResizeWindow(display, event.xconfigurerequest.window, monitorInfo.x, monitorInfo.y, monitorInfo.width / gridWidth - innerBorders, monitorInfo.height / gridHeight - innerBorders); \
+}
+#define END_OF_LOOP \
+{ \
+	const Window rootWindow = XDefaultRootWindow(display); \
+	Window w; \
+	Window s; \
+	XSelectInput(display, rootWindow, NoEventMask); \
+	for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){ \
+		w = container[currentContainer].window; \
+		s = container[currentContainer].subwindow; \
+		ungrabContainerKeysButtons(w, shortcutAmount, shortcut, buttonAmount, button); \
+		XSelectInput(display, s, NoEventMask); \
+		XSelectInput(display, w, NoEventMask); \
+		XUnmapWindow(display, s); \
+		XUnmapWindow(display, w); \
+		XReparentWindow(display, s, rootWindow, 0, 0); \
+		XDestroyWindow(display, w); \
+	} \
+} \
+if(separatorsExist){ \
+	unsigned int currentSeparator; \
+	for(currentSeparator = 0; currentSeparator < mappedSeparatorAmount; ++currentSeparator){ \
+		XUnmapWindow(display, separator[currentSeparator]); \
+	} \
+	for(currentSeparator = 0; currentSeparator < separatorAmount; ++currentSeparator){ \
+		XDestroyWindow(display, separator[currentSeparator]); \
+	} \
+	mappedSeparatorAmount = 0; \
+	separatorsExist = 0; \
+} \
+if(containerDirective == IncreaseContainerDirective){ \
+	containerAmount += containerIncrementDecrementAmount; \
+	containerDirective = NoContainerDirective; \
+}else if(containerDirective == DecreaseContainerDirective){ \
+	containerAmount -= containerIncrementDecrementAmount; \
+	containerDirective = NoContainerDirective; \
 }
 #endif
