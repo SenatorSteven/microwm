@@ -97,6 +97,8 @@ void printEvent(const XEvent event){
 		fprintf(stdout, "GenericEvent\n");
 	}else if(event.type == LASTEvent){
 		fprintf(stdout, "LASTEvent\n");
+	}else{
+		fprintf(stdout, "\n");
 	}
 	return;
 }
