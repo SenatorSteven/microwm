@@ -39,18 +39,20 @@ SOFTWARE. */
 #define FloatingMinimalResizeOption /*-----------*/ (1 << 2)
 #define FloatingAllowStickingOption /*-----------*/ (1 << 3)
 #define FloatingFollowSizeRequestsOption /*------*/ (1 << 4)
-#define GriddingAllowBoundaryBreakXOption /*-----*/ (1 << 5)
-#define GriddingAllowBoundaryBreakYOption /*-----*/ (1 << 6)
-#define TilingUseGapsOption /*-------------------*/ (1 << 7)
-#define TilingUseSeparatorsOption /*-------------*/ (1 << 8)
-#define TilingMinimalResizeOption /*-------------*/ (1 << 9)
+#define FloatingPortWindowsFromGriddingOption /*-*/ (1 << 5)
+#define GriddingAllowBoundaryBreakXOption /*-----*/ (1 << 6)
+#define GriddingAllowBoundaryBreakYOption /*-----*/ (1 << 7)
+#define GriddingPortWindowsFromFloatingOption /*-*/ (1 << 8)
+#define TilingUseGapsOption /*-------------------*/ (1 << 9)
+#define TilingUseSeparatorsOption /*-------------*/ (1 << 10)
+#define TilingMinimalResizeOption /*-------------*/ (1 << 11)
 
 #define NoDefaultGridPosition /*-----------------*/ 0
-#define TopLeftDefaultGridPosition /*------------*/ 1
-#define TopRightDefaultGridPosition /*-----------*/ 2
-#define BottomLeftDefaultGridPosition /*---------*/ 3
-#define BottomRightDefaultGridPosition /*--------*/ 4
-#define CenterDefaultGridPosition /*-------------*/ 5
+#define CenterDefaultGridPosition /*-------------*/ 1
+#define TopLeftDefaultGridPosition /*------------*/ 2
+#define TopRightDefaultGridPosition /*-----------*/ 3
+#define BottomLeftDefaultGridPosition /*---------*/ 4
+#define BottomRightDefaultGridPosition /*--------*/ 5
 
 #define FloatingManagementMode /*----------------*/ 1
 #define GriddingManagementMode /*----------------*/ 2
@@ -73,11 +75,11 @@ SOFTWARE. */
 #define RestartCommand /*------------------------*/ 14
 #define ExitCommand /*---------------------------*/ 15
 #define MoveCommand /*---------------------------*/ 16
-#define MoveTopCommand /*------------------------*/ 17
-#define MoveBottomCommand /*---------------------*/ 18
-#define MoveLeftCommand /*-----------------------*/ 19
-#define MoveRightCommand /*----------------------*/ 20
-#define MoveCenterCommand /*---------------------*/ 21
+#define MoveCenterCommand /*---------------------*/ 17
+#define MoveTopCommand /*------------------------*/ 18
+#define MoveBottomCommand /*---------------------*/ 19
+#define MoveLeftCommand /*-----------------------*/ 20
+#define MoveRightCommand /*----------------------*/ 21
 #define MoveTopLeftCommand /*--------------------*/ 22
 #define MoveTopRightCommand /*-------------------*/ 23
 #define MoveBottomLeftCommand /*-----------------*/ 24
@@ -92,37 +94,35 @@ SOFTWARE. */
 #define AddWindowToGridCommand /*----------------*/ 33
 #define RemoveWindowFromGridCommand /*-----------*/ 34
 #define ToggleWindowGridCommand /*---------------*/ 35
-#define MoveFirstGridSlotCommand /*--------------*/ 36
-#define MoveLastGridSlotCommand /*---------------*/ 37
-#define MoveAboveGridSlotCommand /*--------------*/ 38
-#define MoveBelowGridSlotCommand /*--------------*/ 39
-#define MoveNextGridSlotCommand /*---------------*/ 40
-#define MovePreviousGridSlotCommand /*-----------*/ 41
-#define MoveUpOnGridCommand /*-------------------*/ 42
-#define MoveDownOnGridCommand /*-----------------*/ 43
-#define MoveLeftOnGridCommand /*-----------------*/ 44
-#define MoveRightOnGridCommand /*----------------*/ 45
-#define ExtendWindowUpCommand /*-----------------*/ 46
-#define ExtendWindowDownCommand /*---------------*/ 47
-#define ExtendWindowLeftCommand /*---------------*/ 48
-#define ExtendWindowRightCommand /*--------------*/ 49
-#define ExtendWindowUpLeftCommand /*-------------*/ 50
-#define ExtendWindowUpRightCommand /*------------*/ 51
-#define ExtendWindowDownLeftCommand /*-----------*/ 52
-#define ExtendWindowDownRightCommand /*----------*/ 53
-#define ShrinkWindowUpCommand /*-----------------*/ 54
-#define ShrinkWindowDownCommand /*---------------*/ 55
-#define ShrinkWindowLeftCommand /*---------------*/ 56
-#define ShrinkWindowRightCommand /*--------------*/ 57
-#define ShrinkWindowUpLeftCommand /*-------------*/ 58
-#define ShrinkWindowUpRightCommand /*------------*/ 59
-#define ShrinkWindowDownLeftCommand /*-----------*/ 60
-#define ShrinkWindowDownRightCommand /*----------*/ 61
-#define FullscreenCommand /*---------------------*/ 62
-#define BigscreenCommand /*----------------------*/ 63
-#define CloseCommand /*--------------------------*/ 64
-#define KillCommand /*---------------------------*/ 65
-// #define FocusCommand /*--------------------------*/ 66
+#define MoveAboveGridSlotCommand /*--------------*/ 36
+#define MoveBelowGridSlotCommand /*--------------*/ 37
+#define MoveNextGridSlotCommand /*---------------*/ 38
+#define MovePreviousGridSlotCommand /*-----------*/ 39
+#define MoveUpOnGridCommand /*-------------------*/ 40
+#define MoveDownOnGridCommand /*-----------------*/ 41
+#define MoveLeftOnGridCommand /*-----------------*/ 42
+#define MoveRightOnGridCommand /*----------------*/ 43
+#define ExtendWindowUpCommand /*-----------------*/ 44
+#define ExtendWindowDownCommand /*---------------*/ 45
+#define ExtendWindowLeftCommand /*---------------*/ 46
+#define ExtendWindowRightCommand /*--------------*/ 47
+#define ExtendWindowUpLeftCommand /*-------------*/ 48
+#define ExtendWindowUpRightCommand /*------------*/ 49
+#define ExtendWindowDownLeftCommand /*-----------*/ 50
+#define ExtendWindowDownRightCommand /*----------*/ 51
+#define ShrinkWindowUpCommand /*-----------------*/ 52
+#define ShrinkWindowDownCommand /*---------------*/ 53
+#define ShrinkWindowLeftCommand /*---------------*/ 54
+#define ShrinkWindowRightCommand /*--------------*/ 55
+#define ShrinkWindowUpLeftCommand /*-------------*/ 56
+#define ShrinkWindowUpRightCommand /*------------*/ 57
+#define ShrinkWindowDownLeftCommand /*-----------*/ 58
+#define ShrinkWindowDownRightCommand /*----------*/ 59
+#define FullscreenCommand /*---------------------*/ 60
+#define BigscreenCommand /*----------------------*/ 61
+#define CloseCommand /*--------------------------*/ 62
+#define KillCommand /*---------------------------*/ 63
+#define DetachWindowCommand /*-------------------*/ 64
 
 #define RootCommandCeiling /*--------------------*/ ExitCommand
 
@@ -213,16 +213,6 @@ typedef struct{
 typedef struct{
 	Window window;
 	Window subwindow;
-	ContainerOption option;
-	unsigned int gridX;
-	unsigned int gridY;
-	unsigned int gridWidth;
-	unsigned int gridHeight;
-} Container;
-
-typedef struct{
-	Window window;
-	Window subwindow;
 	int x;
 	int y;
 	unsigned int width;
@@ -240,6 +230,16 @@ typedef struct{
 typedef struct{
 	Window window;
 	Window subwindow;
+	ContainerOption option;
+	unsigned int gridX;
+	unsigned int gridY;
+	unsigned int gridWidth;
+	unsigned int gridHeight;
+} Container;
+
+typedef struct{
+	Window window;
+	Window subwindow;
 	int oldX;
 	int oldY;
 	unsigned int oldWidth;
@@ -250,6 +250,8 @@ typedef struct{
 
 inline static void grabRootKeysButtons(const unsigned int shortcutAmount, const Shortcut *const shortcut, const unsigned int buttonAmount, const Button *const button);
 inline static void grabContainerKeysButtons(const Window w, const unsigned int shortcutAmount, const Shortcut *const shortcut, const unsigned int buttonAmount, const Button *const button);
+static unsigned int getUnsignedInteger(FILE *const file, const char endCharacter);
+static int getInteger(FILE *const file, const char endCharacter);
 static bool containerIsMaximized(const Window w, const MaximizedContainer *const maximizedContainer, const unsigned int monitorAmount);
 static bool findContainer(const Window w, const Container *const c, const unsigned int allocatedContainerAmount, unsigned int *const currentContainer);
 static XRRMonitorInfo getPointerMonitorInfo(const XRRMonitorInfo *const monitors, const unsigned int monitorAmount);
@@ -266,12 +268,12 @@ inline static void ungrabRootKeysButtons(const unsigned int shortcutAmount, cons
 
 void eventLoop(void){
 	ManagementMode managementMode = FloatingManagementMode;
-	Options option = FloatingMinimalMoveOption | FloatingMinimalResizeOption | FloatingAllowStickingOption | GriddingAllowBoundaryBreakXOption | GriddingAllowBoundaryBreakYOption | TilingUseGapsOption | TilingUseSeparatorsOption | TilingMinimalResizeOption;
+	Options option = FloatingMinimalMoveOption | FloatingMinimalResizeOption | FloatingAllowStickingOption | FloatingPortWindowsFromGriddingOption | GriddingAllowBoundaryBreakXOption | GriddingAllowBoundaryBreakYOption | GriddingPortWindowsFromFloatingOption | TilingUseGapsOption | TilingUseSeparatorsOption | TilingMinimalResizeOption;
 	PointerInfo pointerInfo = ChangeToFloatingPointerInfo | ChangeToGriddingPointerInfo | MovePointerInfo | MapPointerInfo;
 	DefaultGridPosition defaultGridPosition = CenterDefaultGridPosition;
 
 	Cascade cascade = {
-		.mode = SimpleCascadeMode,
+		.mode = SmartCascadeMode,
 		.options = OverrideGridWindowsCascadeOption | OverrideMaximizedWindowsCascadeOption,
 		.offsetX = 20,
 		.offsetY = 20
@@ -284,7 +286,12 @@ void eventLoop(void){
 	};
 
 	char *subwindowsPath = "/home/steven/.microwm/.subwindows";
+	char *maximizedWindowsPath = "/home/steven/.microwm/.maximizedWindows";
 	char *separatorsPath = "/home/steven/.microwm/.separators";
+
+
+
+	// bool tilingPrioritizeY = 1;
 
 
 
@@ -324,12 +331,10 @@ void eventLoop(void){
 
 	Window lastCreatedWindow = None;
 
-
-
 	ContainerDirective containerDirective = NoContainerDirective;
 	unsigned int containerIncrementDecrementAmount = 5;
 
-	unsigned int defaultContainerAmount = 10;
+	unsigned int defaultContainerAmount = 5;
 	unsigned int containerAmount = defaultContainerAmount;
 	unsigned int allocatedContainerAmount = 0;
 	XWindowAttributes windowAttributes;
@@ -359,7 +364,7 @@ void eventLoop(void){
 	ARGB floatingContainerBackgroundColor = 0xFF00FF00;
 	ARGB griddingContainerBackgroundColor = 0xFFFF0000;
 	ARGB tilingContainerBackgroundColor = 0xFF0000FF;
-	ARGB inGridContainerBackgroundColor = 0xFFFF0000;
+	ARGB inGridContainerBackgroundColor = 0xFFFF7F00;
 	ARGB gridSubwindowBorderColor = 0x10975C57;
 	ARGB gridSubwindowBackgroundColor = 0x00000000;
 	ARGB separatorBorderColor = 0xFFFFFFFF;
@@ -403,18 +408,22 @@ void eventLoop(void){
 		XRRMonitorInfo *const monitorInfo = XRRGetMonitors(display, XDefaultRootWindow(display), True, (int *)&ma);
 		if(monitorInfo){
 			if(ma == monitorAmount){
-				unsigned int width;
-				unsigned int height;
-				for(unsigned int currentMonitor = 0; currentMonitor < monitorAmount; ++currentMonitor){
-					maximizedContainer[currentMonitor].window = None;
-					monitors[currentMonitor] = monitorInfo[currentMonitor];
-					width = monitors[currentMonitor].width / 3;
-					height = monitors[currentMonitor].height / 3;
-					if(maxGridWidth > width){
-						maxGridWidth = width;
-					}
-					if(maxGridHeight > height){
-						maxGridHeight = height;
+				unsigned int currentMonitor;
+				{
+					unsigned int width;
+					unsigned int height;
+					for(currentMonitor = 0; currentMonitor < monitorAmount; ++currentMonitor){
+						maximizedContainer[currentMonitor].window = None;
+						maximizedContainer[currentMonitor].subwindow = None;
+						monitors[currentMonitor] = monitorInfo[currentMonitor];
+						width = monitors[currentMonitor].width / 3;
+						height = monitors[currentMonitor].height / 3;
+						if(maxGridWidth > width){
+							maxGridWidth = width;
+						}
+						if(maxGridHeight > height){
+							maxGridHeight = height;
+						}
 					}
 				}
 			}
@@ -440,6 +449,7 @@ void eventLoop(void){
 
 
 	bool canConfigurePosition = 1;
+	Window commandedWindow = None;
 
 
 
@@ -458,9 +468,9 @@ void eventLoop(void){
 			if(!XRRQueryExtension(display, &rrEventBase, &rrErrorBase)){
 				fprintf(stderr, "%s: could not query the xrandr extension\n", programName);
 				rrEventBase = 0;
+				XRRSelectInput(display, XDefaultRootWindow(display), RRScreenChangeNotifyMask);
 			}
 		}
-		XRRSelectInput(display, XDefaultRootWindow(display), RRScreenChangeNotifyMask);
 		XSync(display, False);
 		do{
 			fprintf(stdout, "begin\n");
@@ -542,6 +552,8 @@ void eventLoop(void){
 									int y = monitorInfo.y + (monitorInfo.height - height) / 2 - shadow;
 									if(cascade.mode == SmartCascadeMode && lastCreatedWindow){
 										unsigned int startingPoint = 0;
+										x += cascade.offsetX;
+										y += cascade.offsetY;
 										for(currentContainer = startingPoint; currentContainer < allocatedContainerAmount; ++currentContainer){
 											XGetWindowAttributes(display, container[currentContainer].window, &windowAttributes);
 											if(windowAttributes.x == x && windowAttributes.y == y && (unsigned int)windowAttributes.width == width && (unsigned int)windowAttributes.height == height){
@@ -551,7 +563,6 @@ void eventLoop(void){
 													++startingPoint;
 												}
 												currentContainer = startingPoint;
-												continue;
 											}
 										}
 									}
@@ -571,7 +582,10 @@ void eventLoop(void){
 								{
 									unsigned int positionX;
 									unsigned int positionY;
-									if(defaultGridPosition == TopLeftDefaultGridPosition){
+									if(defaultGridPosition == CenterDefaultGridPosition){
+										positionX = gridWidth / 2;
+										positionY = gridHeight / 2;
+									}else if(defaultGridPosition == TopLeftDefaultGridPosition){
 										positionX = 0;
 										positionY = 0;
 									}else if(defaultGridPosition == TopRightDefaultGridPosition){
@@ -580,12 +594,9 @@ void eventLoop(void){
 									}else if(defaultGridPosition == BottomLeftDefaultGridPosition){
 										positionX = 0;
 										positionY = gridHeight - 1;
-									}else if(defaultGridPosition == BottomRightDefaultGridPosition){
+									}else{
 										positionX = gridWidth - 1;
 										positionY = gridHeight - 1;
-									}else{
-										positionX = gridWidth / 2;
-										positionY = gridHeight / 2;
 									}
 									getGridSlotData(monitorInfo, positionX, positionY, gridWidth, gridHeight, &x, &y, &width, &height);
 									container[allocatedContainerAmount].gridX = positionX;
@@ -614,6 +625,7 @@ void eventLoop(void){
 								containerInMonitorMap[allocatedContainerAmount] = 1;
 								++monitorContainerAmount;
 								++allocatedContainerAmount;
+								height = monitorInfo.height - 2 * gapsY;
 								const unsigned int totalSeparatorWidth = separatorWidth + separatorBorders;
 								const unsigned int middleX = monitorContainerAmount / 2;
 								const int y = monitorInfo.y + gapsY;
@@ -636,7 +648,6 @@ void eventLoop(void){
 								int x = monitorInfo.x + gapsX;
 								unsigned int currentSeparator = 0;
 								width = normalWidth;
-								height = monitorInfo.height - 2 * gapsY;
 								for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){
 									if(containerInMonitorMap[currentContainer]){
 										XMoveResizeWindow(display, container[currentContainer].window, x, y, width, height);
@@ -695,6 +706,11 @@ void eventLoop(void){
 							break;
 						}
 					}
+				}else if(event.type == ConfigureNotify){
+					fprintf(stdout, "configure: %lu == %lu\n", event.xconfigure.window, commandedWindow);
+					if(event.xany.window == commandedWindow){
+						commandedWindow = None;
+					}
 				}else if(event.type == ConfigureRequest){
 					CONFIGUREREQUEST
 				}else if(event.type == ClientMessage){
@@ -704,7 +720,49 @@ void eventLoop(void){
 					break;
 				}
 			}
-			END_OF_LOOP
+			if(mode != ExitMode){
+				FILE *const file = fopen(maximizedWindowsPath, "w");
+				if(file){
+					for(unsigned int currentMonitor = 0; currentMonitor < monitorAmount; ++currentMonitor){
+						fprintf(file, "%lu %i %i %u %u %u %u\n", maximizedContainer[currentMonitor].subwindow, maximizedContainer[currentMonitor].oldX, maximizedContainer[currentMonitor].oldY, maximizedContainer[currentMonitor].oldWidth, maximizedContainer[currentMonitor].oldHeight, maximizedContainer[currentMonitor].oldBackgroundColor, maximizedContainer[currentMonitor].shouldChangeProperty);
+					}
+					fclose(file);
+				}
+			}
+			{
+				const Window rootWindow = XDefaultRootWindow(display);
+				Window w;
+				Window s;
+				XSelectInput(display, rootWindow, NoEventMask);
+				for(currentContainer = 0; currentContainer < allocatedContainerAmount; ++currentContainer){
+					w = container[currentContainer].window;
+					s = container[currentContainer].subwindow;
+					ungrabContainerKeysButtons(w, shortcutAmount, shortcut, buttonAmount, button);
+					XSelectInput(display, s, NoEventMask);
+					XSelectInput(display, w, NoEventMask);
+					XUnmapWindow(display, s);
+					XUnmapWindow(display, w);
+					XReparentWindow(display, s, rootWindow, 0, 0);
+					XDestroyWindow(display, w);
+				}
+			}
+			if(separatorsExist){
+				unsigned int currentSeparator;
+				for(currentSeparator = 0; currentSeparator < mappedSeparatorAmount; ++currentSeparator){
+					XUnmapWindow(display, separator[currentSeparator]);
+				}
+				for(currentSeparator = 0; currentSeparator < separatorAmount; ++currentSeparator){
+					XDestroyWindow(display, separator[currentSeparator]);
+				}
+				mappedSeparatorAmount = 0;
+				separatorsExist = 0;
+			}
+			if(containerDirective == IncreaseContainerDirective){
+				containerAmount += containerIncrementDecrementAmount;
+			}else{
+				containerAmount -= containerIncrementDecrementAmount;
+			}
+			containerDirective = NoContainerDirective;
 		}while(mode == ContinueMode);
 	}
 	ungrabRootKeysButtons(shortcutAmount, shortcut, buttonAmount, button);
@@ -747,6 +805,30 @@ inline static void grabContainerKeysButtons(const Window w, const unsigned int s
 	}
 	return;
 }
+static unsigned int getUnsignedInteger(FILE *const file, const char endCharacter){
+	unsigned int number = 0;
+	char c;
+	while((c = fgetc(file)) != endCharacter){
+		number = number * 10 + c - 48;
+	}
+	return number;
+}
+static int getInteger(FILE *const file, const char endCharacter){
+	int number = 0;
+	char c;
+	bool negative = 0;
+	while((c = fgetc(file)) != endCharacter){
+		if(c == '-'){
+			negative = 1;
+		}else{
+			number = number * 10 + c - 48;
+		}
+	}
+	if(negative){
+		number = -number;
+	}
+	return number;
+}
 static bool containerIsMaximized(const Window w, const MaximizedContainer *const maximizedContainer, const unsigned int monitorAmount){
 	bool value = 0;
 	for(unsigned int currentMonitor = 0; currentMonitor < monitorAmount; ++currentMonitor){
@@ -769,75 +851,65 @@ static bool findContainer(const Window w, const Container *const c, const unsign
 	return value;
 }
 static XRRMonitorInfo getPointerMonitorInfo(const XRRMonitorInfo *const monitors, const unsigned int monitorAmount){
-	unsigned int current;
-	if(monitorAmount == 1){
-		current = 0;
-	}else{
-		int x;
-		int y;
+	unsigned int current = 0;
+	if(monitorAmount > 1){
+		int x = 0;
+		int y = 0;
 		{
 			Window w;
 			unsigned int masks;
-			if(!XQueryPointer(display, XDefaultRootWindow(display), &w, &w, &x, &y, &x, &y, &masks)){
-				x = 0;
-				y = 0;
-			}
+			XQueryPointer(display, XDefaultRootWindow(display), &w, &w, &x, &y, &x, &y, &masks);
 		}
-		for(current = 0; current < monitorAmount; ++current){
+		for(;;){
 			if(monitors[current].x <= x && monitors[current].x + monitors[current].width > x && monitors[current].y <= y && monitors[current].y + monitors[current].height > y){
-				goto emergencyExit;
+				break;
 			}
-		}
-		if(current == monitorAmount){
-			current = 0;
+			if(++current == monitorAmount){
+				current = 0;
+			}
 		}
 	}
-	emergencyExit:{}
 	return monitors[current];
 }
 static XRRMonitorInfo getWindowMonitorInfo(const Window w, const XRRMonitorInfo *const monitors, const unsigned int monitorAmount){
-	XRRMonitorInfo monitorInfo;
-	if(monitorAmount == 1){
-		monitorInfo = *monitors;
-	}else{
+	unsigned int monitorToUse;
+	if(monitorAmount > 1){
 		unsigned int current;
 		XWindowAttributes windowAttributes;
+		XGetWindowAttributes(display, w, &windowAttributes);
 		unsigned int pixels;
 		unsigned int height;
 		unsigned int mostPixels = 0;
-		unsigned int monitorToUse = 0;
-		XGetWindowAttributes(display, w, &windowAttributes);
 		if(windowAttributes.border_width){
 			windowAttributes.border_width *= 2;
 			windowAttributes.width += windowAttributes.border_width;
 			windowAttributes.height += windowAttributes.border_width;
 		}
 		for(current = 0; current < monitorAmount; ++current){
-			monitorInfo = monitors[current];
-			if(monitorInfo.x > windowAttributes.x + windowAttributes.width){
+			if(monitors[current].x > windowAttributes.x + windowAttributes.width){
 				continue;
-			}else if(monitorInfo.x <= windowAttributes.x + windowAttributes.width && monitorInfo.x + monitorInfo.width > windowAttributes.x + windowAttributes.width){
+			}else if(monitors[current].x <= windowAttributes.x + windowAttributes.width && monitors[current].x + monitors[current].width > windowAttributes.x + windowAttributes.width){
 				pixels = windowAttributes.x + windowAttributes.width;
 			}else{
-				pixels = monitorInfo.x + monitorInfo.width;
+				pixels = monitors[current].x + monitors[current].width;
 			}
-			if(monitorInfo.x > windowAttributes.x){
-				pixels -= monitorInfo.x;
-			}else if(monitorInfo.x <= windowAttributes.x && monitorInfo.x + monitorInfo.width > windowAttributes.x){
+			if(monitors[current].x > windowAttributes.x){
+				pixels -= monitors[current].x;
+			}else if(monitors[current].x <= windowAttributes.x && monitors[current].x + monitors[current].width > windowAttributes.x){
 				pixels -= windowAttributes.x;
 			}else{
 				continue;
 			}
-			if(monitorInfo.y > windowAttributes.y + windowAttributes.height){
+			if(monitors[current].y > windowAttributes.y + windowAttributes.height){
 				continue;
-			}else if(monitorInfo.y <= windowAttributes.y + windowAttributes.height && monitorInfo.y + monitorInfo.height > windowAttributes.y + windowAttributes.height){
+			}else if(monitors[current].y <= windowAttributes.y + windowAttributes.height && monitors[current].y + monitors[current].height > windowAttributes.y + windowAttributes.height){
 				height = windowAttributes.y + windowAttributes.height;
 			}else{
-				height = monitorInfo.y + monitorInfo.height;
+				height = monitors[current].y + monitors[current].height;
 			}
-			if(monitorInfo.y > windowAttributes.y){
-				height -= monitorInfo.y;
-			}else if(monitorInfo.y <= windowAttributes.y && monitorInfo.y + monitorInfo.height > windowAttributes.y){
+			if(monitors[current].y > windowAttributes.y){
+				height -= monitors[current].y;
+			}else if(monitors[current].y <= windowAttributes.y && monitors[current].y + monitors[current].height > windowAttributes.y){
 				height -= windowAttributes.y;
 			}else{
 				continue;
@@ -848,14 +920,15 @@ static XRRMonitorInfo getWindowMonitorInfo(const Window w, const XRRMonitorInfo 
 				monitorToUse = current;
 			}
 		}
-		monitorInfo = monitors[monitorToUse];
+	}else{
+		monitorToUse = 0;
 	}
-	return monitorInfo;
+	return monitors[monitorToUse];
 }
 static void getGridSlotData(const XRRMonitorInfo monitorInfo, const unsigned int gridX, const unsigned int gridY, const unsigned int gridWidth, const unsigned int gridHeight, int *const x, int *const y, unsigned int *const width, unsigned int *const height){
 	const unsigned int normalWidth = monitorInfo.width / gridWidth;
-	const unsigned int normalHeight = monitorInfo.height / gridHeight;
 	const unsigned int abnormalWidth = monitorInfo.width - (gridWidth - 1) * normalWidth;
+	const unsigned int normalHeight = monitorInfo.height / gridHeight;
 	const unsigned int abnormalHeight = monitorInfo.height - (gridHeight - 1) * normalHeight;
 	if(x){
 		if(gridX > gridWidth / 2){
@@ -963,12 +1036,12 @@ static void unmaximizeContainer(const Window w, const unsigned int monitorAmount
 				XChangeProperty(display, maximizedContainer[currentMonitor].subwindow, XInternAtom(display, "_NET_WM_STATE", False), XA_ATOM, 32, PropModeReplace, (unsigned char *)&atom, 1);
 			}
 			if(maximizedContainer[currentMonitor].oldBackgroundColor == floatingContainerBackgroundColor){
-				XSetWindowBorderWidth(display, maximizedContainer[currentMonitor].window, shadow);
+				XSetWindowBorderWidth(display, w, shadow);
 			}
-			XSetWindowBackground(display, maximizedContainer[currentMonitor].window, maximizedContainer[currentMonitor].oldBackgroundColor);
-			XUnmapWindow(display, maximizedContainer[currentMonitor].window);
-			XMapWindow(display, maximizedContainer[currentMonitor].window);
-			XMoveResizeWindow(display, maximizedContainer[currentMonitor].window, maximizedContainer[currentMonitor].oldX, maximizedContainer[currentMonitor].oldY, maximizedContainer[currentMonitor].oldWidth, maximizedContainer[currentMonitor].oldHeight);
+			XSetWindowBackground(display, w, floatingContainerBackgroundColor);
+			XUnmapWindow(display, w);
+			XMapWindow(display, w);
+			XMoveResizeWindow(display, w, maximizedContainer[currentMonitor].oldX, maximizedContainer[currentMonitor].oldY, maximizedContainer[currentMonitor].oldWidth, maximizedContainer[currentMonitor].oldHeight);
 			XResizeWindow(display, maximizedContainer[currentMonitor].subwindow, maximizedContainer[currentMonitor].oldWidth - borderX, maximizedContainer[currentMonitor].oldHeight - borderY);
 			maximizedContainer[currentMonitor].window = None;
 			break;
@@ -1000,9 +1073,9 @@ static void moveContainerToMonitor(const XRRMonitorInfo source, const XRRMonitor
 	unsigned int height;
 	{
 		XWindowAttributes windowAttributes;
+		XGetWindowAttributes(display, window, &windowAttributes);
 		unsigned int sourcePercent;
 		unsigned int destinationPercent;
-		XGetWindowAttributes(display, window, &windowAttributes);
 		windowAttributes.x -= shadow;
 		windowAttributes.y -= shadow;
 		sourcePercent = source.width / 100;
