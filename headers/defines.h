@@ -37,18 +37,5 @@ SOFTWARE. */
 
 typedef uint8_t bool;
 typedef uint8_t Mode;
-typedef uint8_t Command;
-
-typedef struct{
-	uint16_t keycode;
-	uint16_t masks;
-	Command command;
-} Shortcut;
-
-typedef struct{
-	uint8_t button;
-	uint16_t masks;
-	Command command;
-} Button;
 
 #endif
