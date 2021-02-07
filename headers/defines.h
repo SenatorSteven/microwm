@@ -32,8 +32,9 @@ SOFTWARE. */
 /* # /user-defined constants end # # # # */
 
 #define ContinueMode /*-----------*/ 0
-#define RestartMode /*------------*/ 1
-#define ExitMode /*---------------*/ 2
+#define ExitMode /*---------------*/ 1
+
+#define mode(m) /*----------------*/ (mode == m##Mode)
 
 typedef uint8_t bool;
 typedef uint8_t Mode;
