@@ -26,7 +26,11 @@ SOFTWARE. */
 #include <X11/Xlib.h>
 
 void printEvent(const XEvent event){
-	fprintf(stdout, "event.type: %u, ", event.type);
+	fprintf(stdout, "event.type: ");
+	if(event.type < 10){
+		fprintf(stdout, " ");
+	}
+	fprintf(stdout, "%u, ", event.type);
 	if(event.type == KeyPress){
 		fprintf(stdout, "KeyPress\n");
 	}else if(event.type == KeyRelease){
