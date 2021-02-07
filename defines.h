@@ -1,4 +1,4 @@
-/* globals.c
+/* defines.h
 
 MIT License
 
@@ -22,15 +22,21 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
-#include <stdint.h>
-#include <stdio.h>
-#include <X11/Xlib.h>
-#include "headers/defines.h"
+#ifndef DEFINES_H
+#define DEFINES_H
 
-const char *programName;
-const char *configPath;
-Mode mode;
-Display *display;
-FILE *errorStream;
-void *containerData;
-unsigned int containerAmount;
+/* # /user-defined constants start # # # */
+#define Tab /*--------------------*/ "    "
+#define DefaultCharactersCount /*-*/ 255
+#define DefaultLinesCount /*------*/ 150
+/* # /user-defined constants end # # # # */
+
+#define ContinueMode /*-----------*/ 0
+#define ExitMode /*---------------*/ 1
+
+#define mode(m) /*----------------*/ (mode == m##Mode)
+
+typedef uint8_t bool;
+typedef uint8_t Mode;
+
+#endif

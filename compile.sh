@@ -27,5 +27,5 @@
 if [ ! -d "output" ]; then
 	mkdir output
 fi
-gcc -Wall -Wextra -pedantic -std=c99 globals.c microwm.c getParameters.c eventLoop.c printEvent.c -lX11 -lXrandr -o output/microwm
+gcc -Wall -Wextra -pedantic -ansi globals.c microwm.c getParameters.c printEvent.c eventLoop.c -lX11 -lXrandr -o output/microwm
 exit 0

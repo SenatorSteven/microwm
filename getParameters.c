@@ -31,23 +31,29 @@ SOFTWARE. */
 #define UnusedVariable(v) (void)(v)
 
 #define NoParameters /*----*/ 0
-#define ConfigParameter /*-*/ (1 << 0)
-#define HelpParameter /*---*/ (1 << 1)
-#define ExitParameter /*---*/ (1 << 2)
+#define ErrorStream /*-----*/ (1 << 0)
+#define ConfigParameter /*-*/ (1 << 1)
+#define HelpParameter /*---*/ (1 << 2)
+#define ExitParameter /*---*/ (1 << 3)
+
+#define ISPARAMETER_DEC /*-*/ static bool isParameter(const char *const parameter, const char *const vector)
 
 extern const char *programName;
 extern const char *configPath;
+extern FILE *errorStream;
 
 typedef uint8_t ParameterList;
 
-// static bool isParameter(const char *const parameter, const char *const vector);
+/*ISPARAMETER_DEC;*/
 
 bool getParameters(const unsigned int parameterCount, const char *const *const parameterVector){
 	bool value = 0;
-	programName = parameterVector[0];
+	programName = *parameterVector;
 
 	UnusedVariable(parameterCount);
 	UnusedVariable(parameterVector);
+
+
 
 	/*if(parameterCount > 1){
 		const char *currentParameterVector;
@@ -124,10 +130,13 @@ bool getParameters(const unsigned int parameterCount, const char *const *const p
 	}else{
 		fprintf(stderr, "%s: no config parameter specified\n", programName);
 	}*/
+
+
+
 	value = 1;
 	return value;
 }
-/*static bool isParameter(const char *const parameter, const char *const vector){
+/*ISPARAMETER_DEC{
 	bool value = 0;
 	unsigned int element = 0;
 	char v = *vector;
