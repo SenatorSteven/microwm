@@ -287,7 +287,7 @@ SOFTWARE. */
 #define MAPALLWINDOWS_DEC /*-------------------------*/ static void mapAllWindows(const Container *current, const Container *const wall)
 #define GETGRIDSLOTDATA_DEC /*-----------------------*/ static void getGridSlotData(const unsigned int monitorWidth, const unsigned int monitorHeight, const unsigned int gridX, const unsigned int gridY, const unsigned int gridWidth, const unsigned int gridHeight, int *const x, int *const y, unsigned int *const width, unsigned int *const height)
 #define CREATEGRID_DEC /*----------------------------*/ static void createGrid(const XRRMonitorInfo *monitor, const unsigned int monitorAmount, const unsigned int gridWidth, const unsigned int gridHeight, const ARGB subwindowBorderColor, const ARGB subwindowBackgroundColor, const Window *const grid)
-#define UNMAXIMIZECONTAINER_DEC /*-------------------*/ static void unmaximizeContainer(const Container *const focused, const unsigned int monitorAmount, const unsigned int borderX, const unsigned int borderY, const Atom _NET_WM_STATE, const Atom _NET_WM_STATE_FULLSCREEN, Container *const c, MaximizedContainer *maximizedContainer)
+#define UNMAXIMIZECONTAINER_DEC /*-------------------*/ static void unmaximizeContainer(const Atom _NET_WM_STATE, const Atom _NET_WM_STATE_FULLSCREEN, const unsigned int borderX, const unsigned int borderY, const unsigned int monitorAmount, const Container *const focused, Container *const c, MaximizedContainer *maximizedContainer)
 #define MOVECONTAINERTOGRIDPOSITION_DEC /*-----------*/ static void moveContainerToGridPosition(const Container *const c, const XRRMonitorInfo *const m, const unsigned int gridWidth, const unsigned int gridHeight, const unsigned int borderX, const unsigned int borderY)
 #define GETCURRENTPOINTERMONITOR_DEC /*--------------*/ static unsigned int getCurrentPointerMonitor(const XRRMonitorInfo *monitor, const unsigned int monitorAmount)
 #define GETCURRENTWINDOWMONITOR_DEC /*---------------*/ static unsigned int getCurrentWindowMonitor(const Window w, const XRRMonitorInfo *monitor, const unsigned int monitorAmount)
@@ -514,6 +514,15 @@ typedef struct{
 		Execute *current;
 	} e;
 } DataCursors;
+
+typedef struct{
+	unsigned char *data;
+	long int size;
+	Atom type;
+	unsigned long int amount;
+	unsigned long int bytesAfter;
+	int format;
+} WindowProperty;
 
 UNMAPALLWINDOWS_DEC;
 UNMAXIMIZEALLCONTAINERS_DEC;
@@ -2481,16 +2490,12 @@ void eventLoop(void){
 					Atom *property = XListProperties(display, event.xmaprequest.window, &genericInteger);
 					if(property){
 						if(genericInteger){
-							const long int size = sizeof(Atom);
 							const Atom *const propertyWall = property + genericInteger;
-							Atom type;
-							int format;
-							unsigned long int propertyAmount;
-							unsigned long int bytesAfter;
-							unsigned char *data;
+							WindowProperty p;
+							p.size = sizeof(Atom);
 							changeProperty:{
-								if(XGetWindowProperty(display, event.xmaprequest.window, *property, 0, size, False, AnyPropertyType, &type, &format, &propertyAmount, &bytesAfter, &data) == Success && data){
-									XChangeProperty(display, event.xmaprequest.parent, *property, type, format, PropModeReplace, data, propertyAmount);
+								if(XGetWindowProperty(display, event.xmaprequest.window, *property, 0, p.size, False, AnyPropertyType, &p.type, &p.format, &p.amount, &p.bytesAfter, &p.data) == Success && p.data){
+									XChangeProperty(display, event.xmaprequest.parent, *property, p.type, p.format, PropModeReplace, p.data, p.amount);
 									XFree(data);
 								}
 								if(++property < propertyWall){
@@ -2522,15 +2527,11 @@ void eventLoop(void){
 								lastCreatedWindow = None;
 							}
 							if(cascade.mode == SimpleCascadeMode){
-								if(lastCreatedWindow && !((*cursor.c.current).option & InGridContainerOption) && !((*cursor.c.current).option & MaximizedContainerOption)){
-									if(getCurrentWindowMonitor(lastCreatedWindow, cursor.m.start, monitorAmount) != current){
-										goto uncascadedPosition;
-									}
-									XGetGeometry(display, lastCreatedWindow, &genericWindow, &x, &y, &width, &height, &genericBorder, &genericDepth);
-									XMoveResizeWindow(display, event.xmaprequest.parent, x + cascade.offsetX, y + cascade.offsetY, width, height);
-								}else{
+								if(!lastCreatedWindow || (*cursor.c.current).option & InGridContainerOption || (*cursor.c.current).option & MaximizedContainerOption || getCurrentWindowMonitor(lastCreatedWindow, cursor.m.start, monitorAmount) != current){
 									goto uncascadedPosition;
 								}
+								XGetGeometry(display, lastCreatedWindow, &genericWindow, &x, &y, &width, &height, &genericBorder, &genericDepth);
+								XMoveResizeWindow(display, event.xmaprequest.parent, x + cascade.offsetX, y + cascade.offsetY, width, height);
 							}else{
 								uncascadedPosition:{
 									x = (*cursor.m.current).x + ((*cursor.m.current).width - width) / 2 - shadow;
@@ -2768,7 +2769,7 @@ void eventLoop(void){
 						case _NET_WM_STATE_REMOVE:{
 							if(data1 == _NET.WM.STATE.FULLSCREEN){
 								unmaximizeClient:{
-									unmaximizeContainer(focused, monitorAmount, border.x, border.y, _NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, cursor.c.current, cursor.mc.start);
+									unmaximizeContainer(_NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, border.x, border.y, monitorAmount, focused, cursor.c.current, cursor.mc.start);
 								}
 							}
 							goto eventLoop;
@@ -2782,7 +2783,7 @@ void eventLoop(void){
 										current = getCurrentWindowMonitor(event.xclient.window, cursor.m.start, monitorAmount);
 									}
 									if((*cursor.c.current).option & MaximizedContainerOption){
-										unmaximizeContainer(focused, monitorAmount, border.x, border.y, _NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, cursor.c.current, cursor.mc.start);
+										unmaximizeContainer(_NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, border.x, border.y, monitorAmount, focused, cursor.c.current, cursor.mc.start);
 									}
 									maximizeContainer(FullscreenCommand, cursor.m.start + current, managementMode, &color, _NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, border.x, border.y, focused, cursor.c.current, cursor.mc.start + current);
 								}
@@ -2818,76 +2819,75 @@ void eventLoop(void){
 				if(!monitor){
 					printError("could not update screen");
 				}
-				{
-					genericUnsignedInteger = genericInteger;
-					if(genericUnsignedInteger != monitorAmount){
-						/*void *const old = data;
-						if((data = malloc(shortcutAmount * sizeof(Shortcut) + buttonAmount * sizeof(Button) + executeAmount * sizeof(Execute) + amount * (sizeof(XRRMonitorInfo) + sizeof(Window))))){
-							const Shortcut *const shortcutStart = cursor.s.start;
-							const Shortcut *const shortcutWall = cursor.s.wall;
-							const Button *const buttonStart = cursor.b.start;
-							const Button *const buttonWall = cursor.b.wall;
-							const Execute *const executeStart = cursor.e.start;
-							const Execute *const executeWall = cursor.e.wall;
-							const XRRMonitorInfo *const monitorStart = cursor.m.start;
-							const XRRMonitorInfo *const monitorWall = cursor.m.wall;
-							const Window *const gridStart = cursor.g.start;
-							const Window *const gridWall = cursor.g.wall;
+				genericUnsignedInteger = genericInteger;
+				if(genericUnsignedInteger != monitorAmount){
+					/*void *const old = data;
+					if((data = malloc(shortcutAmount * sizeof(Shortcut) + buttonAmount * sizeof(Button) + executeAmount * sizeof(Execute) + amount * (sizeof(XRRMonitorInfo) + sizeof(Window))))){
+						const Shortcut *const shortcutStart = cursor.s.start;
+						const Shortcut *const shortcutWall = cursor.s.wall;
+						const Button *const buttonStart = cursor.b.start;
+						const Button *const buttonWall = cursor.b.wall;
+						const Execute *const executeStart = cursor.e.start;
+						const Execute *const executeWall = cursor.e.wall;
+						const XRRMonitorInfo *const monitorStart = cursor.m.start;
+						const XRRMonitorInfo *const monitorWall = cursor.m.wall;
+						const Window *const gridStart = cursor.g.start;
+						const Window *const gridWall = cursor.g.wall;
 
 
 
-							cursor.s.start = (Shortcut *)data;
-							cursor.s.wall = cursor.s.start + shortcutAmount;
-							cursor.b.start = (Button *)cursor.s.wall;
-							cursor.b.wall = cursor.b.start + buttonAmount;
-							cursor.e.start = (Execute *)cursor.b.wall;
-							cursor.e.wall = cursor.e.start + executeAmount;
+						cursor.s.start = (Shortcut *)data;
+						cursor.s.wall = cursor.s.start + shortcutAmount;
+						cursor.b.start = (Button *)cursor.s.wall;
+						cursor.b.wall = cursor.b.start + buttonAmount;
+						cursor.e.start = (Execute *)cursor.b.wall;
+						cursor.e.wall = cursor.e.start + executeAmount;
 
 
 
-							cursor.m.start = (XRRMonitorInfo *)cursor.e.wall;
-							cursor.m.wall = cursor.m.start + amount;
-							cursor.g.start = (Window *)cursor.m.wall;
-							cursor.g.wall = cursor.g.start + amount;
+						cursor.m.start = (XRRMonitorInfo *)cursor.e.wall;
+						cursor.m.wall = cursor.m.start + amount;
+						cursor.g.start = (Window *)cursor.m.wall;
+						cursor.g.wall = cursor.g.start + amount;
 
 
 
-							{
-								unsigned int i;
-								unsigned int ii;
-								unsigned int iii;
-								unsigned int fulfilled = 0;
-								for(i = 0; i < amount; ++i){
-									cursor.m.start[i].name = None;
-									for(ii = 0; ii < monitorAmount; ++ii){
-										if(sameMonitor(monitorStart[ii], monitor[i])){
-											cursor.m.start[i] = monitor[i];
-											++fulfilled;
-											break;
-										}
-									}
-								}
-								if(fulfilled < amount){
-									for(i = 0; i < amount; ++i){
-										if(!cursor.m.start[i].name){
-
-
-
-										}
+						{
+							unsigned int i;
+							unsigned int ii;
+							unsigned int iii;
+							unsigned int fulfilled = 0;
+							for(i = 0; i < amount; ++i){
+								cursor.m.start[i].name = None;
+								for(ii = 0; ii < monitorAmount; ++ii){
+									if(sameMonitor(monitorStart[ii], monitor[i])){
+										cursor.m.start[i] = monitor[i];
+										++fulfilled;
+										break;
 									}
 								}
 							}
+							if(fulfilled < amount){
+								for(i = 0; i < amount; ++i){
+									if(!cursor.m.start[i].name){
 
 
 
-							free(old);
-						}else{
-							printError("ram is full, could not store new general data");
-							XRRFreeMonitors(monitor);
-							goto eventLoop;
-						}*/
+									}
+								}
+							}
+						}
+
+
+
+						free(old);
 					}else{
-						/**/
+						printError("ram is full, could not store new general data");
+						XRRFreeMonitors(monitor);
+						goto eventLoop;
+					}*/
+				}else{
+					/**/
 
 
 
@@ -2897,9 +2897,8 @@ void eventLoop(void){
 
 
 
-					}
-					monitorAmount = genericUnsignedInteger;
 				}
+				monitorAmount = genericUnsignedInteger;
 				XRRUpdateConfiguration(&event);
 				displayWidth = XDisplayWidth(display, XDefaultScreen(display));
 				displayHeight = XDisplayHeight(display, XDefaultScreen(display));
@@ -3313,115 +3312,117 @@ void eventLoop(void){
 		}
 		goto eventLoop;
 		griddingModeCommand:{
-			if(!managementMode(Gridding) && containerAmount){
-				const PointerInfo windowPointerInfo = pointerInfo(ChangeToGridding);
-				unsigned int amount;
-				unsigned int *gridX;
-				unsigned int *gridY;
-				if(windowPointerInfo){
-					cursor.m.current = cursor.m.start + getCurrentPointerMonitor(cursor.m.start, monitorAmount);
-					amount = 1;
-				}else{
-					amount = monitorAmount;
-				}
-				if(!(gridX = malloc(2 * amount * sizeof(unsigned int)))){
-					printError("ram is full, could not change to gridding mode");
-					goto eventLoop;
-				}
-				gridY = gridX + amount;
-				unmapAllWindows(cursor.c.start, cursor.c.wall);
-				unmaximizeAllContainers(_NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, monitorAmount, cursor.c.wall, cursor.c.start, cursor.mc.start);
-				{
-					const InputMasks windowMasks = EnterWindowMask | SubstructureRedirectMask;
-					const Options portWindowsFromFloating = option(GriddingPortWindowsFromFloating);
-					const Options evenlyDistributeWindows = option(GriddingEvenlyDistributeWindows);
-					unsigned int gX = 0;
-					unsigned int gY = 0;
-					if(!evenlyDistributeWindows){
-						switch(defaultGridPosition){
-							case TopRightDefaultGridPosition:{
-								gX = gridWidth - 1;
-								break;
-							}
-							case BottomLeftDefaultGridPosition:{
-								gY = gridHeight - 1;
-								break;
-							}
-							case BottomRightDefaultGridPosition:{
-								gX = gridWidth - 1;
-								gY = gridHeight - 1;
-								break;
-							}
-							default:{
-								gX = gridWidth / 2;
-								gY = gridHeight / 2;
-								break;
-							}
-						}
+			if(!managementMode(Gridding)){
+				if(containerAmount){
+					const PointerInfo windowPointerInfo = pointerInfo(ChangeToGridding);
+					unsigned int amount;
+					unsigned int *gridX;
+					unsigned int *gridY;
+					if(windowPointerInfo){
+						cursor.m.current = cursor.m.start + getCurrentPointerMonitor(cursor.m.start, monitorAmount);
+						amount = 1;
+					}else{
+						amount = monitorAmount;
 					}
-					cursor.c.current = cursor.c.start;
-					current = 0;
-					setGriddingModeGridPositions:{
-						*gridX = gX;
-						*gridY = gY;
-						if(++current < amount){
-							++gridX;
-							++gridY;
-							goto setGriddingModeGridPositions;
-						}
-						gridX -= amount - 1;
-						gridY -= amount - 1;
+					if(!(gridX = malloc(2 * amount * sizeof(unsigned int)))){
+						printError("ram is full, could not change to gridding mode");
+						goto eventLoop;
 					}
-					current = cursor.m.current - cursor.m.start;
-					portToGridding:{
-						genericWindow = (*cursor.c.current).window;
-						if((*cursor.c.current).option & InGridContainerOption){
-							if(!portWindowsFromFloating){
-								goto editGriddingWindow;
-							}
-						}else{
-							XSelectInput(display, genericWindow, windowMasks);
-							XSelectInput(display, (*cursor.c.current).subwindow, StructureNotifyMask);
-							XSetWindowBorderWidth(display, genericWindow, 0);
-							(*cursor.c.current).option |= InGridContainerOption;
-							editGriddingWindow:{
-								if(!windowPointerInfo){
-									current = getCurrentWindowMonitor(genericWindow, cursor.m.start, monitorAmount);
-									cursor.m.current = cursor.m.start + current;
-									gX = *(gridX + current);
-									gY = *(gridY + current);
+					gridY = gridX + amount;
+					unmapAllWindows(cursor.c.start, cursor.c.wall);
+					unmaximizeAllContainers(_NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, monitorAmount, cursor.c.wall, cursor.c.start, cursor.mc.start);
+					{
+						const InputMasks windowMasks = EnterWindowMask | SubstructureRedirectMask;
+						const Options portWindowsFromFloating = option(GriddingPortWindowsFromFloating);
+						const Options evenlyDistributeWindows = option(GriddingEvenlyDistributeWindows);
+						unsigned int gX = 0;
+						unsigned int gY = 0;
+						if(!evenlyDistributeWindows){
+							switch(defaultGridPosition){
+								case TopRightDefaultGridPosition:{
+									gX = gridWidth - 1;
+									break;
 								}
-								getGridSlotData((*cursor.m.current).width, (*cursor.m.current).height, gX, gY, gridWidth, gridHeight, &x, &y, &width, &height);
-								XMoveResizeWindow(display, genericWindow, (*cursor.m.current).x + x, (*cursor.m.current).y + y, width, height);
-								XResizeWindow(display, (*cursor.c.current).subwindow, width - border.x, height - border.y);
-								(*cursor.c.current).gridX = gX;
-								(*cursor.c.current).gridY = gY;
-								(*cursor.c.current).gridWidth = 1;
-								(*cursor.c.current).gridHeight = 1;
-								if(evenlyDistributeWindows){
-									if(++gX == gridWidth){
-										gX = 0;
-										if(++gY == gridHeight){
-											gY = 0;
-										}
+								case BottomLeftDefaultGridPosition:{
+									gY = gridHeight - 1;
+									break;
+								}
+								case BottomRightDefaultGridPosition:{
+									gX = gridWidth - 1;
+									gY = gridHeight - 1;
+									break;
+								}
+								default:{
+									gX = gridWidth / 2;
+									gY = gridHeight / 2;
+									break;
+								}
+							}
+						}
+						cursor.c.current = cursor.c.start;
+						current = 0;
+						setGriddingModeGridPositions:{
+							*gridX = gX;
+							*gridY = gY;
+							if(++current < amount){
+								++gridX;
+								++gridY;
+								goto setGriddingModeGridPositions;
+							}
+							gridX -= amount - 1;
+							gridY -= amount - 1;
+						}
+						current = cursor.m.current - cursor.m.start;
+						portToGridding:{
+							genericWindow = (*cursor.c.current).window;
+							if((*cursor.c.current).option & InGridContainerOption){
+								if(!portWindowsFromFloating){
+									goto editGriddingWindow;
+								}
+							}else{
+								XSelectInput(display, genericWindow, windowMasks);
+								XSelectInput(display, (*cursor.c.current).subwindow, StructureNotifyMask);
+								XSetWindowBorderWidth(display, genericWindow, 0);
+								(*cursor.c.current).option |= InGridContainerOption;
+								editGriddingWindow:{
+									if(!windowPointerInfo){
+										current = getCurrentWindowMonitor(genericWindow, cursor.m.start, monitorAmount);
+										cursor.m.current = cursor.m.start + current;
+										gX = *(gridX + current);
+										gY = *(gridY + current);
 									}
-									*(gridX + current) = gX;
-									*(gridY + current) = gY;
+									getGridSlotData((*cursor.m.current).width, (*cursor.m.current).height, gX, gY, gridWidth, gridHeight, &x, &y, &width, &height);
+									XMoveResizeWindow(display, genericWindow, (*cursor.m.current).x + x, (*cursor.m.current).y + y, width, height);
+									XResizeWindow(display, (*cursor.c.current).subwindow, width - border.x, height - border.y);
+									(*cursor.c.current).gridX = gX;
+									(*cursor.c.current).gridY = gY;
+									(*cursor.c.current).gridWidth = 1;
+									(*cursor.c.current).gridHeight = 1;
+									if(evenlyDistributeWindows){
+										if(++gX == gridWidth){
+											gX = 0;
+											if(++gY == gridHeight){
+												gY = 0;
+											}
+										}
+										*(gridX + current) = gX;
+										*(gridY + current) = gY;
+									}
 								}
 							}
-						}
-						XSetWindowBackground(display, genericWindow, color.containerBackground.gridding);
-						if(++cursor.c.current < cursor.c.wall){
-							goto portToGridding;
+							XSetWindowBackground(display, genericWindow, color.containerBackground.gridding);
+							if(++cursor.c.current < cursor.c.wall){
+								goto portToGridding;
+							}
 						}
 					}
+					if(option(GriddingUseFocusedWindowColor) && focused){
+						XSetWindowBackground(display, (*focused).window, color.focusedContainerBackground.gridding);
+					}
+					mapAllWindows(cursor.c.start, cursor.c.wall);
+					free(gridX);
 				}
-				if(option(GriddingUseFocusedWindowColor) && focused){
-					XSetWindowBackground(display, (*focused).window, color.focusedContainerBackground.gridding);
-				}
-				mapAllWindows(cursor.c.start, cursor.c.wall);
 				managementMode = GriddingManagementMode;
-				free(gridX);
 			}
 		}
 		goto eventLoop;
@@ -3827,7 +3828,7 @@ void eventLoop(void){
 						genericWindow = (*cursor.c.current).window;
 						if((!((*cursor.c.current).option & MaximizedContainerOption) || overrideMaximizedWindows) && (!((*cursor.c.current).option & InGridContainerOption) || overrideGridWindows)){
 							if((*cursor.c.current).option & MaximizedContainerOption){
-								unmaximizeContainer(focused, monitorAmount, border.x, border.y, _NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, cursor.c.current, cursor.mc.start);
+								unmaximizeContainer(_NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, border.x, border.y, monitorAmount, focused, cursor.c.current, cursor.mc.start);
 							}
 							if((*cursor.c.current).option & InGridContainerOption){
 								XSetWindowBorderWidth(display, genericWindow, shadow);
@@ -3863,7 +3864,7 @@ void eventLoop(void){
 								genericWindow = (*cursor.c.current).window;
 								if((!((*cursor.c.current).option & MaximizedContainerOption) || overrideMaximizedWindows) && (!((*cursor.c.current).option & InGridContainerOption) || overrideGridWindows)){
 									if((*cursor.c.current).option & MaximizedContainerOption){
-										unmaximizeContainer(focused, monitorAmount, border.x, border.y, _NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, cursor.c.current, cursor.mc.start);
+										unmaximizeContainer(_NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, border.x, border.y, monitorAmount, focused, cursor.c.current, cursor.mc.start);
 									}
 									if((*cursor.c.current).option & InGridContainerOption){
 										XSetWindowBorderWidth(display, genericWindow, shadow);
@@ -3915,6 +3916,7 @@ void eventLoop(void){
 				const XRRMonitorInfo *const newMonitor = findMonitor(command - SwapNextMonitorCommand, displayWidth, displayHeight, cursor.m.start, cursor.m.current, cursor.m.wall);
 				if(newMonitor){
 					const XRRMonitorInfo *monitorToUse;
+					Options isMaximized;
 					cursor.c.current = cursor.c.start;
 					swapWindowsFloating:{
 						current = getCurrentWindowMonitor((*cursor.c.current).window, cursor.m.start, monitorAmount);
@@ -3922,6 +3924,18 @@ void eventLoop(void){
 							monitorToUse = newMonitor;
 						}else if(cursor.m.start + current == newMonitor){
 							monitorToUse = cursor.m.current;
+						}else{
+							goto swapWindowsFloatingLoopControl;
+						}
+						isMaximized = (*cursor.c.current).option & MaximizedContainerOption;
+						if(isMaximized){
+							cursor.mc.current = cursor.mc.start + current;
+							if((*cursor.mc.current).shouldChangeProperty){
+								command = FullscreenCommand;
+							}else{
+								command = BigscreenCommand;
+							}
+							unmaximizeContainer(_NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, border.x, border.y, monitorAmount, focused, cursor.c.current, cursor.mc.start);
 						}
 						switch(managementMode){
 							case FloatingManagementMode:{
@@ -3945,8 +3959,13 @@ void eventLoop(void){
 								break;
 							}
 						}
-						if(++cursor.c.current < cursor.c.wall){
-							goto swapWindowsFloating;
+						if(isMaximized){
+							maximizeContainer(command, monitorToUse, managementMode, &color, _NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, border.x, border.y, focused, cursor.c.current, cursor.mc.current);
+						}
+						swapWindowsFloatingLoopControl:{
+							if(++cursor.c.current < cursor.c.wall){
+								goto swapWindowsFloating;
+							}
 						}
 					}
 				}
@@ -4814,9 +4833,9 @@ void eventLoop(void){
 							}
 							cursor.mc.current = cursor.mc.start + (newMonitor - cursor.m.start);
 							if((*cursor.mc.current).window && findWindow((*cursor.mc.current).window, &(*cursor.c.start).window, sizeof(Container), containerAmount, &current)){
-								unmaximizeContainer(focused, monitorAmount, border.x, border.y, _NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, cursor.c.start + current, cursor.mc.start);
+								unmaximizeContainer(_NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, border.x, border.y, monitorAmount, focused, cursor.c.start + current, cursor.mc.start);
 							}
-							unmaximizeContainer(focused, monitorAmount, border.x, border.y, _NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, cursor.c.current, cursor.mc.start);
+							unmaximizeContainer(_NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, border.x, border.y, monitorAmount, focused, cursor.c.current, cursor.mc.start);
 						}
 						switch(managementMode){
 							case FloatingManagementMode:{
@@ -5926,7 +5945,7 @@ void eventLoop(void){
 				cursor.mc.current = cursor.mc.start + current;
 				if((*cursor.mc.current).window){
 					genericWindow = (*cursor.mc.current).window;
-					unmaximizeContainer(focused, monitorAmount, border.x, border.y, _NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, cursor.c.current, cursor.mc.start);
+					unmaximizeContainer(_NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, border.x, border.y, monitorAmount, focused, cursor.c.current, cursor.mc.start);
 					if(genericWindow == event.xany.window){
 						goto eventLoop;
 					}
@@ -6058,39 +6077,35 @@ FINDWINDOW_DEC{
 	return value;
 }
 UNMAXIMIZEALLCONTAINERS_DEC{
-	const long int size = sizeof(Atom);
 	const Atom atom = None;
+	WindowProperty p;
 	unsigned int current = 0;
-	Atom type;
-	int format;
-	unsigned long int propertyAmount;
-	unsigned long int bytesAfter;
-	unsigned char *data;
 	unsigned char *d;
 	unsigned int currentProperty;
+	p.size = sizeof(Atom);
 	findMaximized:{
 		if((*maximizedContainer).window){
 			if((*maximizedContainer).shouldChangeProperty){
-				if(XGetWindowProperty(display, (*maximizedContainer).subwindow, _NET_WM_STATE, 0, size, False, XA_ATOM, &type, &format, &propertyAmount, &bytesAfter, &data) == Success && data){
-					d = data;
+				if(XGetWindowProperty(display, (*maximizedContainer).subwindow, _NET_WM_STATE, 0, p.size, False, XA_ATOM, &p.type, &p.format, &p.amount, &p.bytesAfter, &p.data) == Success && p.data){
+					d = p.data;
 					currentProperty = 0;
 					findStateFullscreen:{
 						if(*d == _NET_WM_STATE_FULLSCREEN){
-							*d = *(data + --propertyAmount);
-							*(data + propertyAmount) = None;
+							*d = *(p.data + --p.amount);
+							*(p.data + p.amount) = None;
 						}else{
-							if(++currentProperty < propertyAmount){
+							if(++currentProperty < p.amount){
 								++d;
 								goto findStateFullscreen;
 							}
-							--propertyAmount;
+							--p.amount;
 						}
 					}
-					if(propertyAmount){
-						changeProperties((*maximizedContainer).window, (*maximizedContainer).subwindow, _NET_WM_STATE, XA_ATOM, 32, PropModeReplace, (unsigned char *)data, propertyAmount);
-						XFree(data);
+					if(p.amount){
+						changeProperties((*maximizedContainer).window, (*maximizedContainer).subwindow, _NET_WM_STATE, XA_ATOM, 32, PropModeReplace, (unsigned char *)p.data, p.amount);
+						XFree(p.data);
 					}else{
-						XFree(data);
+						XFree(p.data);
 						goto noProperties;
 					}
 				}else{
@@ -6215,33 +6230,29 @@ UNMAXIMIZECONTAINER_DEC{
 		const Window w = (*c).window;
 		maximizedContainer += currentMonitor;
 		if((*maximizedContainer).shouldChangeProperty){
-			Atom type;
-			int format;
-			unsigned long int propertyAmount;
-			unsigned long int bytesAfter;
-			unsigned char *data;
-			if(XGetWindowProperty(display, s, _NET_WM_STATE, 0, sizeof(Atom), False, XA_ATOM, &type, &format, &propertyAmount, &bytesAfter, &data) == Success && data){
+			WindowProperty p;
+			if(XGetWindowProperty(display, s, _NET_WM_STATE, 0, sizeof(Atom), False, XA_ATOM, &p.type, &p.format, &p.amount, &p.bytesAfter, &p.data) == Success && p.data){
 				{
 					unsigned int currentProperty = 0;
-					unsigned char *d = data;
+					unsigned char *d = p.data;
 					findStateFullscreen:{
 						if(*d == _NET_WM_STATE_FULLSCREEN){
-							*d = *(data + --propertyAmount);
-							*(data + propertyAmount) = None;
+							*d = *(p.data + --p.amount);
+							*(p.data + p.amount) = None;
 						}else{
-							if(++currentProperty < propertyAmount){
+							if(++currentProperty < p.amount){
 								++d;
 								goto findStateFullscreen;
 							}
-							--propertyAmount;
+							--p.amount;
 						}
 					}
 				}
-				if(propertyAmount){
-					changeProperties(w, s, _NET_WM_STATE, XA_ATOM, 32, PropModeReplace, (unsigned char *)data, propertyAmount);
-					XFree(data);
+				if(p.amount){
+					changeProperties(w, s, _NET_WM_STATE, XA_ATOM, 32, PropModeReplace, (unsigned char *)p.data, p.amount);
+					XFree(p.data);
 				}else{
-					XFree(data);
+					XFree(p.data);
 					goto noProperties;
 				}
 			}else{
