@@ -2496,7 +2496,7 @@ void eventLoop(void){
 							changeProperty:{
 								if(XGetWindowProperty(display, event.xmaprequest.window, *property, 0, p.size, False, AnyPropertyType, &p.type, &p.format, &p.amount, &p.bytesAfter, &p.data) == Success && p.data){
 									XChangeProperty(display, event.xmaprequest.parent, *property, p.type, p.format, PropModeReplace, p.data, p.amount);
-									XFree(data);
+									XFree(p.data);
 								}
 								if(++property < propertyWall){
 									goto changeProperty;
