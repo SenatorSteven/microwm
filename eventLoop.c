@@ -517,7 +517,6 @@ typedef struct{
 
 typedef struct{
 	unsigned char *data;
-	long int size;
 	Atom type;
 	unsigned long int amount;
 	unsigned long int bytesAfter;
@@ -2490,11 +2489,11 @@ void eventLoop(void){
 					Atom *property = XListProperties(display, event.xmaprequest.window, &genericInteger);
 					if(property){
 						if(genericInteger){
+							const long int size = sizeof(Atom);
 							const Atom *const propertyWall = property + genericInteger;
 							WindowProperty p;
-							p.size = sizeof(Atom);
 							changeProperty:{
-								if(XGetWindowProperty(display, event.xmaprequest.window, *property, 0, p.size, False, AnyPropertyType, &p.type, &p.format, &p.amount, &p.bytesAfter, &p.data) == Success && p.data){
+								if(XGetWindowProperty(display, event.xmaprequest.window, *property, 0, size, False, AnyPropertyType, &p.type, &p.format, &p.amount, &p.bytesAfter, &p.data) == Success && p.data){
 									XChangeProperty(display, event.xmaprequest.parent, *property, p.type, p.format, PropModeReplace, p.data, p.amount);
 									XFree(p.data);
 								}
@@ -3916,7 +3915,11 @@ void eventLoop(void){
 				const XRRMonitorInfo *const newMonitor = findMonitor(command - SwapNextMonitorCommand, displayWidth, displayHeight, cursor.m.start, cursor.m.current, cursor.m.wall);
 				if(newMonitor){
 					const XRRMonitorInfo *monitorToUse;
-					Options isMaximized;
+					Container *c0 = NULL;
+					Container *c1 = NULL;
+					MaximizedContainer *mc0;
+					MaximizedContainer *mc1;
+					Command command1;
 					cursor.c.current = cursor.c.start;
 					swapWindowsFloating:{
 						current = getCurrentWindowMonitor((*cursor.c.current).window, cursor.m.start, monitorAmount);
@@ -3927,13 +3930,24 @@ void eventLoop(void){
 						}else{
 							goto swapWindowsFloatingLoopControl;
 						}
-						isMaximized = (*cursor.c.current).option & MaximizedContainerOption;
-						if(isMaximized){
-							cursor.mc.current = cursor.mc.start + current;
-							if((*cursor.mc.current).shouldChangeProperty){
-								command = FullscreenCommand;
+						if((*cursor.c.current).option & MaximizedContainerOption){
+							findWindow((*cursor.c.current).window, &(*cursor.mc.start).window, sizeof(MaximizedContainer), monitorAmount, &current);
+							if(!c0){
+								mc0 = cursor.mc.start + (monitorToUse - cursor.m.start);
+								c0 = cursor.c.current;
+								if((*(cursor.mc.start + current)).shouldChangeProperty){
+									command = FullscreenCommand;
+								}else{
+									command = BigscreenCommand;
+								}
 							}else{
-								command = BigscreenCommand;
+								mc1 = cursor.mc.start + (monitorToUse - cursor.m.start);
+								c1 = cursor.c.current;
+								if((*(cursor.mc.start + current)).shouldChangeProperty){
+									command1 = FullscreenCommand;
+								}else{
+									command1 = BigscreenCommand;
+								}
 							}
 							unmaximizeContainer(_NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, border.x, border.y, monitorAmount, focused, cursor.c.current, cursor.mc.start);
 						}
@@ -3959,14 +3973,17 @@ void eventLoop(void){
 								break;
 							}
 						}
-						if(isMaximized){
-							maximizeContainer(command, monitorToUse, managementMode, &color, _NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, border.x, border.y, focused, cursor.c.current, cursor.mc.current);
-						}
 						swapWindowsFloatingLoopControl:{
 							if(++cursor.c.current < cursor.c.wall){
 								goto swapWindowsFloating;
 							}
 						}
+					}
+					if(c0){
+						maximizeContainer(command, cursor.m.start + (mc0 - cursor.mc.start), managementMode, &color, _NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, border.x, border.y, focused, c0, mc0);
+					}
+					if(c1){
+						maximizeContainer(command1, cursor.m.start + (mc1 - cursor.mc.start), managementMode, &color, _NET.WM.STATE.this, _NET.WM.STATE.FULLSCREEN, border.x, border.y, focused, c1, mc1);
 					}
 				}
 			}
@@ -6077,16 +6094,16 @@ FINDWINDOW_DEC{
 	return value;
 }
 UNMAXIMIZEALLCONTAINERS_DEC{
+	const long int size = sizeof(Atom);
 	const Atom atom = None;
 	WindowProperty p;
 	unsigned int current = 0;
 	unsigned char *d;
 	unsigned int currentProperty;
-	p.size = sizeof(Atom);
 	findMaximized:{
 		if((*maximizedContainer).window){
 			if((*maximizedContainer).shouldChangeProperty){
-				if(XGetWindowProperty(display, (*maximizedContainer).subwindow, _NET_WM_STATE, 0, p.size, False, XA_ATOM, &p.type, &p.format, &p.amount, &p.bytesAfter, &p.data) == Success && p.data){
+				if(XGetWindowProperty(display, (*maximizedContainer).subwindow, _NET_WM_STATE, 0, size, False, XA_ATOM, &p.type, &p.format, &p.amount, &p.bytesAfter, &p.data) == Success && p.data){
 					d = p.data;
 					currentProperty = 0;
 					findStateFullscreen:{
