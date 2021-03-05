@@ -25,6 +25,8 @@ SOFTWARE. */
 #ifndef GETPARAMETERS_H
 #define GETPARAMETERS_H
 
-bool getParameters(const unsigned int parameterCount, const char *const *const parameterVector);
+#define GETPARAMETERS /*-*/ bool getParameters(const unsigned int parameterCount, const char *const *const parameterVector)
+
+GETPARAMETERS;
 
 #endif

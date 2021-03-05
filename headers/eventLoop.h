@@ -25,6 +25,8 @@ SOFTWARE. */
 #ifndef EVENTLOOP_H
 #define EVENTLOOP_H
 
-void eventLoop(void);
+#define EVENTLOOP_DEC /*-*/ void eventLoop(void)
+
+EVENTLOOP_DEC;
 
 #endif

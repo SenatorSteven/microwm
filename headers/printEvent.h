@@ -25,6 +25,8 @@ SOFTWARE. */
 #ifndef PRINTEVENT_H
 #define PRINTEVENT_H
 
-void printEvent(const XEvent event);
+#define PRINTEVENT_DEC /*-*/ void printEvent(const XEvent event)
+
+PRINTEVENT_DEC;
 
 #endif
