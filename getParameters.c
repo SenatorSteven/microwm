@@ -27,6 +27,7 @@ SOFTWARE. */
 #include <stdio.h>
 #include <X11/Xlib.h>
 #include "headers/defines.h"
+#include "headers/getParameters.h"
 
 #define UnusedVariable(v) (void)(v)
 
@@ -40,13 +41,13 @@ SOFTWARE. */
 
 extern const char *programName;
 extern const char *configPath;
-extern FILE *errorStream;
+extern ErrorData error;
 
 typedef uint8_t ParameterList;
 
 /*ISPARAMETER_DEC;*/
 
-bool getParameters(const unsigned int parameterCount, const char *const *const parameterVector){
+GETPARAMETERS{
 	bool value = 0;
 	programName = *parameterVector;
 

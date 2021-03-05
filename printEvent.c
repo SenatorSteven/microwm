@@ -24,8 +24,9 @@ SOFTWARE. */
 
 #include <stdio.h>
 #include <X11/Xlib.h>
+#include "headers/printEvent.h"
 
-void printEvent(const XEvent event){
+PRINTEVENT_DEC{
 	fprintf(stdout, "event.type: ");
 	if(event.type < 10){
 		fprintf(stdout, " ");

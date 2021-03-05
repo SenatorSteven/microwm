@@ -31,20 +31,25 @@ SOFTWARE. */
 #include "headers/getParameters.h"
 #include "headers/eventLoop.h"
 
+#define SETROOTPROPERTIES_DEC /*-*/ static void setRootProperties(void)
+
 extern const char *programName;
+extern ErrorData error;
 extern Mode mode;
 extern Display *display;
-extern FILE *errorStream;
 extern void *containerData;
 extern unsigned int containerAmount;
+extern ManagementMode managementMode;
 
-static void setRootProperties(void);
+SETROOTPROPERTIES_DEC;
 
 int main(const int argumentCount, const char *const *const argumentVector){
-	errorStream = stderr;
+	error.stream = StandardErrorStream;
+	error.mustOpenStream = 0;
 	if(getParameters((unsigned int)argumentCount, argumentVector)){
 		if((display = XOpenDisplay(NULL))){
 			mode = ContinueMode;
+			managementMode = NoManagementMode;
 			containerData = NULL;
 			containerAmount = 0;
 			setRootProperties();
@@ -57,17 +62,17 @@ int main(const int argumentCount, const char *const *const argumentVector){
 			free(containerData);
 			XCloseDisplay(display);
 		}else{
-			fprintf(errorStream, "%s: could not connect to server\n", programName);
+			printError("could not connect to server");
 		}
 	}
 	return 0;
 }
-static void setRootProperties(void){
-	const Atom _NET_SUPPORTED = XInternAtom(display, "_NET_SUPPORTED", False);
+SETROOTPROPERTIES_DEC{
+	const Atom _NET_SUPPORTED = atom("_NET_SUPPORTED");
 	unsigned char property[3];
 	property[0] = _NET_SUPPORTED;
-	property[1] = XInternAtom(display, "_NET_WM_STATE", False);
-	property[2] = XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False);
+	property[1] = atom("_NET_WM_STATE");
+	property[2] = atom("_NET_WM_STATE_FULLSCREEN");
 	XChangeProperty(display, XDefaultRootWindow(display), _NET_SUPPORTED, XA_ATOM, 32, PropModeReplace, property, 3);
 	return;
 }

@@ -29,8 +29,24 @@ SOFTWARE. */
 
 const char *programName;
 const char *configPath;
+ErrorData error;
 Mode mode;
 Display *display;
-FILE *errorStream;
 void *containerData;
 unsigned int containerAmount;
+ManagementMode managementMode;
+ProgramData *programData;
+
+PRINTERROR_DEC{
+	if(error.mustOpenStream){
+		if(!(error.stream = fopen(error.path, "w"))){
+			goto emergencyExit;
+		}
+		fprintf(error.stream, "%s: %s\n", programName, string);
+		fclose(error.stream);
+		goto emergencyExit;
+	}
+	fprintf(error.stream, "%s: %s\n", programName, string);
+	emergencyExit:{}
+	return;
+}
