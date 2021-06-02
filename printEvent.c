@@ -23,87 +23,52 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. */
 
 #include <stdio.h>
-#include <X11/Xlib.h>
+#include <xcb/xcb.h>
+#include "headers/defines.h"
 #include "headers/printEvent.h"
 
+#if DEBUG == true
 PRINTEVENT_DEC{
-	fprintf(stdout, "event.type: ");
-	if(event.type < 10){
-		fprintf(stdout, " ");
+	const char *type;
+	switch(event){
+		case XCB_EVENT_MASK_NO_EVENT: /*-*/ return;
+		case XCB_KEY_PRESS: /*-----------*/ type = "KeyPress"; /*---------*/ break;
+		case XCB_KEY_RELEASE: /*---------*/ type = "KeyRelease"; /*-------*/ break;
+		case XCB_BUTTON_PRESS: /*--------*/ type = "ButtonPress"; /*------*/ break;
+		case XCB_BUTTON_RELEASE: /*------*/ type = "ButtonRelease"; /*----*/ break;
+		case XCB_MOTION_NOTIFY: /*-------*/ type = "MotionNotify"; /*-----*/ break;
+		case XCB_ENTER_NOTIFY: /*--------*/ type = "EnterNotify"; /*------*/ break;
+		case XCB_LEAVE_NOTIFY: /*--------*/ type = "LeaveNotify"; /*------*/ break;
+		case XCB_FOCUS_IN: /*------------*/ type = "FocusIn"; /*----------*/ break;
+		case XCB_FOCUS_OUT: /*-----------*/ type = "FocusOut"; /*---------*/ break;
+		case XCB_KEYMAP_NOTIFY: /*-------*/ type = "KeymapNotify"; /*-----*/ break;
+		case XCB_EXPOSE: /*--------------*/ type = "Expose"; /*-----------*/ break;
+		case XCB_GRAPHICS_EXPOSURE: /*---*/ type = "GraphicsExpose"; /*---*/ break;
+		case XCB_NO_EXPOSURE: /*---------*/ type = "NoExpose"; /*---------*/ break;
+		case XCB_VISIBILITY_NOTIFY: /*---*/ type = "VisibilityNotify"; /*-*/ break;
+		case XCB_CREATE_NOTIFY: /*-------*/ type = "CreateNotify"; /*-----*/ break;
+		case XCB_DESTROY_NOTIFY: /*------*/ type = "DestroyNotify"; /*----*/ break;
+		case XCB_UNMAP_NOTIFY: /*--------*/ type = "UnmapNotify"; /*------*/ break;
+		case XCB_MAP_NOTIFY: /*----------*/ type = "MapNotify"; /*--------*/ break;
+		case XCB_MAP_REQUEST: /*---------*/ type = "MapRequest"; /*-------*/ break;
+		case XCB_REPARENT_NOTIFY: /*-----*/ type = "ReparentNotify"; /*---*/ break;
+		case XCB_CONFIGURE_NOTIFY: /*----*/ type = "ConfigureNotify"; /*--*/ break;
+		case XCB_CONFIGURE_REQUEST: /*---*/ type = "ConfigureRequest"; /*-*/ break;
+		case XCB_GRAVITY_NOTIFY: /*------*/ type = "GravityNotify"; /*----*/ break;
+		case XCB_RESIZE_REQUEST: /*------*/ type = "ResizeRequest"; /*----*/ break;
+		case XCB_CIRCULATE_NOTIFY: /*----*/ type = "CirculateNotify"; /*--*/ break;
+		case XCB_CIRCULATE_REQUEST: /*---*/ type = "CirculateRequest"; /*-*/ break;
+		case XCB_PROPERTY_NOTIFY: /*-----*/ type = "PropertyNotify"; /*---*/ break;
+		case XCB_SELECTION_CLEAR: /*-----*/ type = "SelectionClear"; /*---*/ break;
+		case XCB_SELECTION_REQUEST: /*---*/ type = "SelectionRequest"; /*-*/ break;
+		case XCB_SELECTION_NOTIFY: /*----*/ type = "SelectionNotify"; /*--*/ break;
+		case XCB_COLORMAP_NOTIFY: /*-----*/ type = "ColormapNotify"; /*---*/ break;
+		case XCB_CLIENT_MESSAGE: /*------*/ type = "ClientMessage"; /*----*/ break;
+		case XCB_MAPPING_NOTIFY: /*------*/ type = "MappingNotify"; /*----*/ break;
+		case XCB_GE_GENERIC: /*----------*/ type = "GenericEvent"; /*-----*/ break;
+		default: /*----------------------*/ type = "Unrecognized"; /*-----*/ break;
 	}
-	fprintf(stdout, "%u, ", event.type);
-	if(event.type == KeyPress){
-		fprintf(stdout, "KeyPress\n");
-	}else if(event.type == KeyRelease){
-		fprintf(stdout, "KeyRelease\n");
-	}else if(event.type == ButtonPress){
-		fprintf(stdout, "ButtonPress\n");
-	}else if(event.type == ButtonRelease){
-		fprintf(stdout, "ButtonRelease\n");
-	}else if(event.type == MotionNotify){
-		fprintf(stdout, "MotionNotify\n");
-	}else if(event.type == EnterNotify){
-		fprintf(stdout, "EnterNotify\n");
-	}else if(event.type == LeaveNotify){
-		fprintf(stdout, "LeaveNotify\n");
-	}else if(event.type == FocusIn){
-		fprintf(stdout, "FocusIn\n");
-	}else if(event.type == FocusOut){
-		fprintf(stdout, "FocusOut\n");
-	}else if(event.type == KeymapNotify){
-		fprintf(stdout, "KeymapNotify\n");
-	}else if(event.type == Expose){
-		fprintf(stdout, "Expose\n");
-	}else if(event.type == GraphicsExpose){
-		fprintf(stdout, "GraphicsExpose\n");
-	}else if(event.type == NoExpose){
-		fprintf(stdout, "NoExpose\n");
-	}else if(event.type == VisibilityNotify){
-		fprintf(stdout, "VisibilityNotify\n");
-	}else if(event.type == CreateNotify){
-		fprintf(stdout, "CreateNotify\n");
-	}else if(event.type == DestroyNotify){
-		fprintf(stdout, "DestroyNotify\n");
-	}else if(event.type == UnmapNotify){
-		fprintf(stdout, "UnmapNotify\n");
-	}else if(event.type == MapNotify){
-		fprintf(stdout, "MapNotify\n");
-	}else if(event.type == MapRequest){
-		fprintf(stdout, "MapRequest\n");
-	}else if(event.type == ReparentNotify){
-		fprintf(stdout, "ReparentNotify\n");
-	}else if(event.type == ConfigureNotify){
-		fprintf(stdout, "ConfigureNotify\n");
-	}else if(event.type == ConfigureRequest){
-		fprintf(stdout, "ConfigureRequest\n");
-	}else if(event.type == GravityNotify){
-		fprintf(stdout, "GravityNotify\n");
-	}else if(event.type == ResizeRequest){
-		fprintf(stdout, "ResizeRequest\n");
-	}else if(event.type == CirculateNotify){
-		fprintf(stdout, "CirculateNotify\n");
-	}else if(event.type == CirculateRequest){
-		fprintf(stdout, "CirculateRequest\n");
-	}else if(event.type == PropertyNotify){
-		fprintf(stdout, "PropertyNotify\n");
-	}else if(event.type == SelectionClear){
-		fprintf(stdout, "SelectionClear\n");
-	}else if(event.type == SelectionRequest){
-		fprintf(stdout, "SelectionRequest\n");
-	}else if(event.type == SelectionNotify){
-		fprintf(stdout, "SelectionNotify\n");
-	}else if(event.type == ColormapNotify){
-		fprintf(stdout, "ColormapNotify\n");
-	}else if(event.type == ClientMessage){
-		fprintf(stdout, "ClientMessage\n");
-	}else if(event.type == MappingNotify){
-		fprintf(stdout, "MappingNotify\n");
-	}else if(event.type == GenericEvent){
-		fprintf(stdout, "GenericEvent\n");
-	}else if(event.type == LASTEvent){
-		fprintf(stdout, "LASTEvent\n");
-	}else{
-		fprintf(stdout, "\n");
-	}
+	fprintf(stdout, "event: %s\n", type);
 	return;
 }
+#endif

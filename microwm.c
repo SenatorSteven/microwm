@@ -25,54 +25,109 @@ SOFTWARE. */
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <X11/Xatom.h>
-#include <X11/Xlib.h>
+#include <xcb/xcb.h>
+#include <xcb/randr.h>
 #include "headers/defines.h"
 #include "headers/getParameters.h"
 #include "headers/eventLoop.h"
 
-#define SETROOTPROPERTIES_DEC /*-*/ static void setRootProperties(void)
+#define MaxRootPropertyAmount /*-*/ 3
 
 extern const char *programName;
-extern ErrorData error;
-extern Mode mode;
-extern Display *display;
-extern void *containerData;
-extern unsigned int containerAmount;
-extern ManagementMode managementMode;
+extern const char *connectionName;
+extern const xcb_screen_t *screen;
+extern const char *errorPath;
+extern bool mustOpenErrorStream;
+extern FILE *errorStream;
+extern xcb_connection_t *connection;
+extern xcb_generic_error_t *genericError;
+extern xcb_generic_reply_t *reply;
 
-SETROOTPROPERTIES_DEC;
-
-int main(const int argumentCount, const char *const *const argumentVector){
-	error.stream = StandardErrorStream;
-	error.mustOpenStream = 0;
-	if(getParameters((unsigned int)argumentCount, argumentVector)){
-		if((display = XOpenDisplay(NULL))){
-			mode = ContinueMode;
-			managementMode = NoManagementMode;
-			containerData = NULL;
-			containerAmount = 0;
-			setRootProperties();
-			eventLoop:{
-				eventLoop();
-				if(!mode(Exit)){
-					goto eventLoop;
+int main(const int argumentAmount, const char *const *const argument){
+	if(!getParameters((unsigned int)argumentAmount, argument)){
+		return 0;
+	}
+	{
+		int screenNumber = 0;
+		connection = xcb_connect_to_display_with_auth_info(connectionName, NULL, &screenNumber);
+		if(printConnectionError()){
+			if(xcb_connection_has_error(connection) == XCB_CONN_CLOSED_PARSE_ERR){
+				if(connectionName){
+					printError("invalid server name");
+				}else{
+					printError("no server name");
 				}
 			}
-			free(containerData);
-			XCloseDisplay(display);
-		}else{
-			printError("could not connect to server");
+			goto emergencyExit;
+		}
+		screen = xcb_setup_roots_iterator(xcb_get_setup(connection)).data + screenNumber;
+	}
+	{
+		const WindowAttributes valueList = XCB_EVENT_MASK_FOCUS_CHANGE | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY | XCB_EVENT_MASK_SUBSTRUCTURE_REDIRECT;
+		if((genericError = xcb_request_check(connection, xcb_change_window_attributes_checked(connection, (*screen).root, XCB_CW_EVENT_MASK, &valueList)))){
+			printXCBError();
+			if((*genericError).error_code == XCB_ACCESS){
+				printError("another window manager is running");
+			}
+			free(genericError);
 		}
 	}
+	xcb_randr_select_input(connection, (*screen).root, XCB_RANDR_NOTIFY_MASK_SCREEN_CHANGE);
+	{
+		unsigned int rootPropertyAmount = 0;
+		struct{
+			xcb_atom_t p0;
+			xcb_atom_t p1;
+			xcb_atom_t p2;
+		} property;
+		{
+			xcb_intern_atom_cookie_t *c;
+			xcb_atom_t *atom = &property.p0;
+			unsigned int currentCookie = 0;
+			struct{
+				xcb_intern_atom_cookie_t c0;
+				xcb_intern_atom_cookie_t c1;
+				xcb_intern_atom_cookie_t c2;
+			} cookie;
+			c = &cookie.c0;
+			cookie.c0 = xcb_intern_atom(connection, false, 14, "_NET_SUPPORTED");
+			cookie.c1 = xcb_intern_atom(connection, false, 13, "_NET_WM_STATE");
+			cookie.c2 = xcb_intern_atom(connection, false, 24, "_NET_WM_STATE_FULLSCREEN");
+			getAtomReply:{
+				if(!(reply = xcb_intern_atom_reply(connection, *c, &genericError))){
+					printXCBError();
+					free(genericError);
+					if(!rootPropertyAmount){
+						discardAtomReply:{
+							if(++currentCookie < MaxRootPropertyAmount){
+								xcb_discard_reply(connection, (*(++c)).sequence);
+								goto discardAtomReply;
+							}
+						}
+						goto rootPropertyEmergencyExit;
+					}
+				}else{
+					*(atom + rootPropertyAmount) = (*(xcb_intern_atom_reply_t *)reply).atom;
+					++rootPropertyAmount;
+					free(reply);
+				}
+				if(++currentCookie < MaxRootPropertyAmount){
+					++c;
+					goto getAtomReply;
+				}
+			}
+		}
+		if((genericError = xcb_request_check(connection, xcb_change_property_checked(connection, XCB_PROP_MODE_REPLACE, (*screen).root, property.p0, XCB_ATOM_ATOM, 32, rootPropertyAmount, &property)))){
+			printXCBError();
+			free(genericError);
+			rootPropertyEmergencyExit:{
+				printError("could not set root properties");
+			}
+		}
+	}
+	eventLoop();
+	emergencyExit:{
+		xcb_disconnect(connection);
+	}
 	return 0;
-}
-SETROOTPROPERTIES_DEC{
-	const Atom _NET_SUPPORTED = atom("_NET_SUPPORTED");
-	unsigned char property[3];
-	property[0] = _NET_SUPPORTED;
-	property[1] = atom("_NET_WM_STATE");
-	property[2] = atom("_NET_WM_STATE_FULLSCREEN");
-	XChangeProperty(display, XDefaultRootWindow(display), _NET_SUPPORTED, XA_ATOM, 32, PropModeReplace, property, 3);
-	return;
 }

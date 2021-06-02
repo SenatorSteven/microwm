@@ -24,8 +24,22 @@
 
 #!/bin/sh
 
+asm="output/asm"
 if [ ! -d "output" ]; then
 	mkdir output
 fi
-gcc -Wall -Wextra -pedantic -ansi globals.c microwm.c getParameters.c printEvent.c eventLoop.c -lX11 -lXrandr -o output/microwm
+if [ ! -d "$asm" ]; then
+	mkdir $asm
+fi
+if [ -d "output" ] && [ -d "$asm" ]; then
+	flags="-Wall -Wextra -pedantic -ansi -Os -fno-inline -D_POSIX_C_SOURCE=199309L -lpthread -lxcb -lxcb-randr -o"
+	gcc globals.c -S $flags $asm/globals.s
+	gcc microwm.c -S $flags $asm/microwm.s
+	gcc getParameters.c -S $flags $asm/getParameters.s
+	gcc eventLoop.c -S $flags $asm/eventLoop.s
+	gcc printEvent.c -S $flags $asm/printEvent.s
+	gcc $asm/globals.s $asm/microwm.s $asm/getParameters.s $asm/eventLoop.s $asm/printEvent.s $flags output/microwm
+else
+	echo "could not write executable to disk"
+fi
 exit 0

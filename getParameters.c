@@ -25,144 +25,180 @@ SOFTWARE. */
 #include <dirent.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <X11/Xlib.h>
+#include <xcb/xcb.h>
 #include "headers/defines.h"
 #include "headers/getParameters.h"
 
-#define UnusedVariable(v) (void)(v)
-
-#define NoParameters /*----*/ 0
-#define ErrorStream /*-----*/ (1 << 0)
-#define ConfigParameter /*-*/ (1 << 1)
-#define HelpParameter /*---*/ (1 << 2)
-#define ExitParameter /*---*/ (1 << 3)
-
-#define ISPARAMETER_DEC /*-*/ static bool isParameter(const char *const parameter, const char *const vector)
+#define ISANYARGUMENT_DEC /*----*/ static bool isAnyArgument(const char *const arg)
+#define PRINTCUSTOMERROR_DEC /*-*/ static void printCustomError(const char *const customString, const char *const string)
 
 extern const char *programName;
+extern const char *connectionName;
 extern const char *configPath;
-extern ErrorData error;
+extern const char *errorPath;
+extern bool mustOpenErrorStream;
+extern FILE *errorStream;
 
-typedef uint8_t ParameterList;
+ISANYARGUMENT_DEC;
+PRINTCUSTOMERROR_DEC;
 
-/*ISPARAMETER_DEC;*/
-
-GETPARAMETERS{
-	bool value = 0;
-	programName = *parameterVector;
-
-	UnusedVariable(parameterCount);
-	UnusedVariable(parameterVector);
-
-
-
-	/*if(parameterCount > 1){
-		const char *currentParameterVector;
-		ParameterList hasReadParameter = NoParameters;
-		DIR *dir;
-		FILE *file;
-		for(unsigned int currentParameter = 1; currentParameter < parameterCount; ++currentParameter){
-			currentParameterVector = parameterVector[currentParameter];
-			if(!(hasReadParameter & ConfigParameter)){
-				if(isParameter("-c", currentParameterVector) || isParameter("--config", currentParameterVector)){
-					hasReadParameter |= ConfigParameter;
-					if(++currentParameter < parameterCount){
-						currentParameterVector = parameterVector[currentParameter];
-						if(isParameter("-h", currentParameterVector) || isParameter("--help", currentParameterVector)){
-							fprintf(stdout, "%s: usage: %s --config \"/path/to/file\"\n", programName, programName);
-							fprintf(stdout, "%sif the specified file doesn't exist, it will be created\n%sand it will contain the hardcoded default configuration\n", Tab, Tab);
-							hasReadParameter |= HelpParameter;
-							break;
-						}else if(isParameter("-c", currentParameterVector) || isParameter("--config", currentParameterVector)){
-							fprintf(stderr, "%s: no config value specified\n", programName);
-							hasReadParameter |= ExitParameter;
-							break;
-						}else{
-							configPath = currentParameterVector;
-							if((dir = opendir(configPath))){
-								closedir(dir);
-								fprintf(stderr, "%s: \"%s\" config value is directory\n", programName, configPath);
-								hasReadParameter |= ExitParameter;
-								break;
-							}else if((file = fopen(configPath, "r"))){
-								fclose(file);
-								continue;
-							}else if((file = fopen(configPath, "w"))){
-								fclose(file);
-								remove(configPath);
-								continue;
-							}else{
-								fprintf(stderr, "%s: could not create config file\n", programName);
-								hasReadParameter |= ExitParameter;
-								break;
-							}
-						}
-					}else{
-						fprintf(stderr, "%s: no config value specified\n", programName);
-						hasReadParameter |= ExitParameter;
-						break;
-					}
-				}
+GETPARAMETERS_DEC{
+	const char *const *const argumentWall = argument + argumentAmount;
+	const char *arg;
+	DIR *dir;
+	FILE *file;
+	programName = *argument;
+	configPath = NULL;
+	connectionName = NULL;
+	errorPath = NULL;
+	mustOpenErrorStream = 0;
+	errorStream = StandardErrorStream;
+	if(argumentAmount == 1){
+		goto noConfig;
+	}
+	++argument;
+	matchArguments:{
+		arg = *argument;
+		if(!configPath && (compareStrings("-c", arg) || compareStrings("--config", arg))){
+			if(++argument >= argumentWall){
+				printError("no config value specified");
+				return false;
 			}
-			if(isParameter("-h", currentParameterVector) || isParameter("--help", currentParameterVector)){
-				fprintf(stdout, "%s: usage: %s [parameters] or %s [parameter] [--help]\n", programName, programName, programName);
-				fprintf(stdout, "%s[-h], [--help]  %sdisplay this message\n", Tab, Tab);
-				fprintf(stdout, "%s[-c], [--config]%spath to config, necessary\n", Tab, Tab);
-				hasReadParameter |= HelpParameter;
-				break;
-			}else if(isParameter("-c", currentParameterVector) || isParameter("--config", currentParameterVector)){
-				fprintf(stderr, "%s: the config parameter has already been specified\n", programName);
-				hasReadParameter |= ExitParameter;
-				break;
+			arg = *argument;
+			if(compareStrings("-h", arg) || compareStrings("--help", arg)){
+				fprintf(stdout, "%s: usage: %s --config \"/path/to/file\"\n%sif the specified file doesn't exist it will be created\n%sand it will contain the hardcoded default configuration\n", programName, programName, Tab, Tab);
+				return false;
 			}
-			fprintf(stderr, "%s: \"%s\" is not recognized as program parameter, check help? [-h]\n", programName, currentParameterVector);
-			hasReadParameter |= ExitParameter;
-			break;
+			if(isAnyArgument(arg)){
+				printError("no config value specified");
+				return false;
+			}
+			configPath = arg;
+			if((dir = opendir(configPath))){
+				closedir(dir);
+				printCustomError(configPath, "config value is directory");
+				return false;
+			}
+			if((file = fopen(configPath, "r"))){
+				fclose(file);
+				goto matchArgumentLoopControl;
+			}
+			if((file = fopen(configPath, "w"))){
+				fclose(file);
+				remove(configPath);
+				goto matchArgumentLoopControl;
+			}
+			printError("could not create config file");
+			return false;
 		}
-		if(!(hasReadParameter & HelpParameter)){
-			if(hasReadParameter & ConfigParameter){
-				if(!(hasReadParameter & ExitParameter)){
-					value = 1;
-				}
-			}else{
-				fprintf(stderr, "%s: no config parameter specified\n", programName);
+		if(!errorPath && (compareStrings("-e", arg) || compareStrings("--error", arg))){
+			if(++argument >= argumentWall){
+				printError("no error value specified");
+				return false;
+			}
+			arg = *argument;
+			if(compareStrings("-h", arg) || compareStrings("--help", arg)){
+				fprintf(stdout, "%s: usage: %s --error \"/path/to/file\"\n%sif the specified file doesn't exist it will be created\n", programName, programName, Tab);
+				return false;
+			}
+			if(isAnyArgument(arg)){
+				printError("no error value specified");
+				return false;
+			}
+			if(compareStrings("stdout", arg)){
+				errorStream = stdout;
+				goto matchArgumentLoopControl;
+			}
+			if(compareStrings("stderr", arg)){
+				errorStream = stderr;
+				goto matchArgumentLoopControl;
+			}
+			errorPath = arg;
+			if((dir = opendir(errorPath))){
+				closedir(dir);
+				printCustomError(errorPath, "error value is directory");
+				return false;
+			}
+			if((file = fopen(errorPath, "r"))){
+				fclose(file);
+				mustOpenErrorStream = 1;
+				goto matchArgumentLoopControl;
+			}
+			if((file = fopen(errorPath, "w"))){
+				fclose(file);
+				remove(errorPath);
+				mustOpenErrorStream = 1;
+				goto matchArgumentLoopControl;
+			}
+			printError("could not create error file");
+			return false;
+		}
+		if(!connectionName && (compareStrings("-s", arg) || compareStrings("--server", arg))){
+			if(++argument >= argumentWall){
+				printError("no server value specified");
+				return false;
+			}
+			arg = *argument;
+			if(compareStrings("-h", arg) || compareStrings("--help", arg)){
+				fprintf(stdout, "%s: usage: %s --server \"name\"\n%sthe name of the server, if running, should be something like \":0\"\n%sit can be checked with the $DISPLAY variable on a running server (no tty)\n", programName, programName, Tab, Tab);
+				return false;
+			}
+			if(isAnyArgument(arg)){
+				printError("no server value specified");
+				return false;
+			}
+			connectionName = arg;
+			goto matchArgumentLoopControl;
+		}
+		if(compareStrings("-h", arg) || compareStrings("--help", arg)){
+			fprintf(stdout, "%s: usage: %s [parameter] [value] or %s [parameter] [--help]\n%s[-h], [--help]  %sdisplay this message\n%s[-c], [--config]%spath to config file, necessary\n%s[-e], [--error] %spath to error file, optional\n%s[-s], [--server]%sx server connection, optional\n", programName, programName, programName, Tab, Tab, Tab, Tab, Tab, Tab, Tab, Tab);
+			return false;
+		}
+		if(compareStrings("-c", arg) || compareStrings("--config", arg)){
+			printError("the config parameter has already been specified");
+			return false;
+		}
+		if(compareStrings("-e", arg) || compareStrings("--error", arg)){
+			printError("the error parameter has already been specified");
+			return false;
+		}
+		if(compareStrings("-s", arg) || compareStrings("--server", arg)){
+			printError("the server parameter has already been specified");
+			return false;
+		}
+		printCustomError(arg, "is not recognized as program parameter, check help? [-h]");
+		return false;
+		matchArgumentLoopControl:{
+			if(++argument < argumentWall){
+				goto matchArguments;
 			}
 		}
-	}else{
-		fprintf(stderr, "%s: no config parameter specified\n", programName);
-	}*/
-
-
-
-	value = 1;
-	return value;
+	}
+	if(!configPath){
+		noConfig:{
+			printError("no config parameter specified");
+			return false;
+		}
+	}
+	if(errorPath && compareStrings(configPath, errorPath)){
+		mustOpenErrorStream = 0;
+		printError("config and error files are the same");
+		return false;
+	}
+	return true;
 }
-/*ISPARAMETER_DEC{
-	bool value = 0;
-	unsigned int element = 0;
-	char v = *vector;
-	char p = *parameter;
-	while(v || p){
-		if(v >= 'A' && v <= 'Z'){
-			if(v != p && v != p - 32){
-				element = 0;
-				break;
-			}
-		}else if(v >= 'a' && v <= 'z'){
-			if(v != p && v != p + 32){
-				element = 0;
-				break;
-			}
-		}else if(v != p){
-			element = 0;
-			break;
+ISANYARGUMENT_DEC{
+	if(compareStrings("-c", arg) || compareStrings("--config", arg) || compareStrings("-e", arg) || compareStrings("--error", arg) || compareStrings("-s", arg) || compareStrings("--server", arg)){
+		return true;
+	}
+	return false;
+}
+PRINTCUSTOMERROR_DEC{
+	if(!mustOpenErrorStream || (errorStream = fopen(errorPath, "a"))){
+		fprintf(errorStream, "%s: \"%s\" %s\n", programName, customString, string);
+		if(mustOpenErrorStream){
+			fclose(errorStream);
 		}
-		++element;
-		v = vector[element];
-		p = parameter[element];
 	}
-	if(element){
-		value = 1;
-	}
-	return value;
-}*/
+	return;
+}
