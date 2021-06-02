@@ -25,8 +25,12 @@ SOFTWARE. */
 #ifndef PRINTEVENT_H
 #define PRINTEVENT_H
 
-#define PRINTEVENT_DEC /*-*/ void printEvent(const XEvent event)
+#include "defines.h"
 
+#define PRINTEVENT_DEC /*-*/ void printEvent(const uint8_t event)
+
+#if DEBUG == true
 PRINTEVENT_DEC;
+#endif
 
 #endif
