@@ -1,3 +1,4 @@
+
 # compile.sh
 #
 # MIT License
@@ -22,24 +23,31 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-#!/bin/sh
+#!/bin/bash
 
-asm="output/asm"
-if [ ! -d "output" ]; then
-	mkdir output
-fi
-if [ ! -d "$asm" ]; then
-	mkdir $asm
-fi
-if [ -d "output" ] && [ -d "$asm" ]; then
-	flags="-Wall -Wextra -pedantic -ansi -Os -fno-inline -D_POSIX_C_SOURCE=199309L -lpthread -lxcb -lxcb-randr -o"
-	gcc globals.c -S $flags $asm/globals.s
-	gcc microwm.c -S $flags $asm/microwm.s
-	gcc getParameters.c -S $flags $asm/getParameters.s
-	gcc eventLoop.c -S $flags $asm/eventLoop.s
-	gcc printEvent.c -S $flags $asm/printEvent.s
-	gcc $asm/globals.s $asm/microwm.s $asm/getParameters.s $asm/eventLoop.s $asm/printEvent.s $flags output/microwm
-else
-	echo "could not write executable to disk"
-fi
-exit 0
+NAME="compile.sh";
+true=1;
+false=0;
+
+function main(){
+	[ $true        ] && { local name="microwm";                                                   } || :;
+	[ $true        ] && { local folder="/tmp/$name";                                              } || :;
+	[ $true        ] && { local libraries="-lxcb -lxcb-randr -lxcb-shape -lxcb-xfixes";           } || :;
+	[ $true        ] && { local parameters=();                                                    } || :;
+	[ $true        ] && { cd "${BASH_SOURCE%/*}";                                                 } || :;
+	[ ! -f "$NAME" ] && { printf "$NAME: could not find $NAME directory\n" 1>&2;        return 1; } || :;
+	[ $true        ] && { rm -rf "$folder";                                                       } || :;
+	[ $true        ] && { parameters+=(header-folder "headers");                                  } || :;
+	[ $true        ] && { parameters+=(source-folder "source");                                   } || :;
+	[ $true        ] && { parameters+=(debug-folder "$folder/debug");                             } || :;
+	[ $true        ] && { parameters+=(output-folder "$folder/output");                           } || :;
+	[ $true        ] && { parameters+=(record-folder "$folder/record");                           } || :;
+	[ $true        ] && { parameters+=(mains "$name");                                            } || :;
+	[ $true        ] && { parameters+=(executables "$name");                                      } || :;
+	[ $true        ] && { parameters+=(libraries "$libraries");                                   } || :;
+	[ $true        ] && { ./compile/compile.sh "${parameters[@]}" "$@";                 return 0; } || :;
+}
+
+main "$@";
+exit $?;
+

@@ -1,3 +1,4 @@
+
 <!-- README.md
 
 MIT License
@@ -22,26 +23,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. -->
 
-# microwm
-A simple window manager for the X Window System.
+# [ˈmaɪ.kroʊ ˈdʌbəljuː ɛm]
+Window manager for the X Window System
 
-
-
-## micro-wm? What is that?
-
-
-
-## Features:
-- 
-
-
-
-## Philosophy
-
-
-
-## Trivia
-
-
-
-## Terminal help menu
